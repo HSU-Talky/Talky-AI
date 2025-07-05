@@ -8,7 +8,7 @@ import httpx
 
 from config import settings
 
-# --- 1. FastAPI 앱 및 모델 정의 ---
+# 1. FastAPI 앱 및 모델 정의
 app = FastAPI(
     title="AAC 대화형 문장 추천 API",
     description="사용자의 상황과 대화의 흐름에 맞는 문장을 AI를 통해 생성하고 추천합니다.",
@@ -37,7 +37,7 @@ class CategoryLogRequest(BaseModel):
     category: str
 
 
-# --- 2. DB 연결 의존성 ---
+# 2. DB 연결 의존성
 def get_db():
     try:
         conn = pymysql.connect(
@@ -49,7 +49,7 @@ def get_db():
         if conn: conn.close()
 
 
-# --- 3. 핵심 로직 함수들 (이전과 동일) ---
+# 3. 핵심 로직 함수들 (이전과 동일)
 # (get_category_from_qr, get_location_category, generate_ai_sentences 함수는 변경 없음)
 def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
     with db.cursor() as cursor:
@@ -102,7 +102,7 @@ async def generate_ai_sentences(category: str, keywords: Optional[str], previous
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
 
-# --- 4. API 엔드포인트들 ---
+# 4. API 엔드포인트들
 
 @app.get("/recommendations", response_model=RecommendationResponse, summary="AI 문장 추천 받기")
 async def get_recommendations(
@@ -125,7 +125,7 @@ async def get_recommendations(
     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
     return RecommendationResponse(category=category, recommended_sentences=final_sentences)
 
-# === 새로운 API 엔드포인트들 ===
+# 새로운 API 엔드포인트들
 
 @app.post("/log/category-selection", status_code=204, summary="장소 선택 횟수 기록")
 def log_category_selection(log_request: CategoryLogRequest, db: pymysql.connections.Connection = Depends(get_db)):

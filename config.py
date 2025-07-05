@@ -2,7 +2,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
-# --- 디버깅 섹션 ---
 # 1. 현재 코드가 실행되는 위치와 .env 파일의 예상 경로를 출력합니다.
 print("--- .env 파일 경로 확인 ---")
 current_working_directory = os.getcwd()
@@ -34,10 +33,3 @@ class Settings(BaseSettings):
 
 # 설정 객체를 생성합니다. 이 시점에 .env 파일의 값이 로드됩니다.
 settings = Settings()
-
-
-# --- 최종 확인 섹션 ---
-# 3. 모든 과정을 거쳐 최종적으로 메모리에 로드된 API 키 값을 출력합니다.
-print("--- 최종적으로 로드된 API 키 값 확인 ---")
-print(f"GOOGLE_API_KEY: {settings.GOOGLE_API_KEY}")
-print("-------------------------------------\n")

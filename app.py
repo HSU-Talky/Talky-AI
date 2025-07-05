@@ -54,14 +54,14 @@ def reset_conversation():
     st.session_state.previous_sentence = None
     st.session_state.current_category = ""
 
-# --- 1. 메인 화면 구성 ---
+# 1. 메인 화면 구성
 st.title("🤖 대화형 AAC 앱")
 
-# --- 2. 메인 탭 구성 ---
+# 2. 메인 탭 구성
 main_tab, favorites_tab = st.tabs(["💬 대화하기", "⭐ 즐겨찾기 목록"])
 
 with main_tab:
-    # --- 대화 기록 표시 ---
+    # 대화 기록 표시
     if st.session_state.conversation_history:
         st.subheader("대화 기록")
         for item in st.session_state.conversation_history:
@@ -69,7 +69,7 @@ with main_tab:
             else: st.success(f"**상대방:** {item['message']}")
         st.markdown("---")
 
-    # --- 상태에 따른 UI 분기 처리 ---
+    # 상태에 따른 UI 분기 처리
     if st.session_state.previous_sentence: # Case 1: 대화 이어가기
         st.header("다음 대화 이어가기")
         st.write(f"**내가 한 말:** \"{st.session_state.previous_sentence}\"")
@@ -88,7 +88,7 @@ with main_tab:
             st.rerun()
 
     elif st.session_state.current_recommendations: # Case 2: 추천 문장 표시
-        st.subheader(f"✅ 현재 장소: **{st.session_state.current_category}**")
+        st.subheader(f"현재 장소: **{st.session_state.current_category}**")
         st.success("아래 문장으로 대화를 시작하거나 이어가보세요!")
         for sentence in st.session_state.current_recommendations:
             col1, col2 = st.columns([0.85, 0.15])
@@ -132,7 +132,7 @@ with main_tab:
                 pass
 
 with favorites_tab:
-    st.header("⭐ 즐겨찾기 목록")
+    st.header("즐겨찾기 목록")
     if st.button("새로고침"):
         get_favorites_from_backend()
     
