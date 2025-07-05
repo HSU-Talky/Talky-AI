@@ -20,7 +20,9 @@
 3.  **.env 파일 생성:**
     `.env.example` 파일을 복사하여 `.env` 파일을 만들고, 각자의 API 키와 DB 정보를 입력해주세요.
 
-4.  **서버 실행:**
-    ```bash
-    uvicorn main:app --reload
-    ```
+4. 서버 실행:
+FastAPI 앱을 실행하려면 아래 명령어를 사용하세요.  
+(`main.py` 파일 내에 `app = FastAPI()` 가 정의되어 있어야 합니다.)
+
+```bash
+uvicorn main:app --reload
