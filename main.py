@@ -8,11 +8,11 @@ import httpx
 
 from config import settings
 
-# 1. FastAPI 앱 및 모델 정의
+# --- 1. FastAPI 앱 및 모델 정의 ---
 app = FastAPI(
     title="AAC 대화형 문장 추천 API",
     description="사용자의 상황과 대화의 흐름에 맞는 문장을 AI를 통해 생성하고 추천합니다.",
-    version="5.0.0" # 즐겨찾기 및 카운트 기능 추가
+    version="8.0.0" # 최종 기능 통합 버전
 )
 
 class Sentence(BaseModel):
@@ -23,7 +23,6 @@ class RecommendationResponse(BaseModel):
     category: str
     recommended_sentences: List[Sentence]
 
-# 즐겨찾기 추가를 위한 요청/응답 모델
 class FavoriteRequest(BaseModel):
     sentence: str
 
@@ -32,13 +31,17 @@ class FavoriteResponse(BaseModel):
     user_id: int
     sentence: str
 
-# 카테고리 선택 로깅을 위한 요청 모델
 class CategoryLogRequest(BaseModel):
     category: str
 
+class SpeechLogRequest(BaseModel):
+    sentence: str
+    location: str
 
-# 2. DB 연결 의존성
+
+# --- 2. DB 연결 의존성 ---
 def get_db():
+    """DB 커넥션을 생성하고, API 처리가 끝나면 자동으로 닫는 의존성 함수"""
     try:
         conn = pymysql.connect(
             host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD,
@@ -49,8 +52,7 @@ def get_db():
         if conn: conn.close()
 
 
-# 3. 핵심 로직 함수들 (이전과 동일)
-# (get_category_from_qr, get_location_category, generate_ai_sentences 함수는 변경 없음)
+# --- 3. 핵심 로직 함수들 ---
 def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
     with db.cursor() as cursor:
         sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
@@ -102,7 +104,7 @@ async def generate_ai_sentences(category: str, keywords: Optional[str], previous
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
 
-# 4. API 엔드포인트들
+# --- 4. API 엔드포인트들 ---
 
 @app.get("/recommendations", response_model=RecommendationResponse, summary="AI 문장 추천 받기")
 async def get_recommendations(
@@ -125,29 +127,31 @@ async def get_recommendations(
     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
     return RecommendationResponse(category=category, recommended_sentences=final_sentences)
 
-# 새로운 API 엔드포인트들
-
 @app.post("/log/category-selection", status_code=204, summary="장소 선택 횟수 기록")
 def log_category_selection(log_request: CategoryLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """사용자가 선택한 장소 카테고리의 selection_count를 1 증가시킵니다."""
     with db.cursor() as cursor:
         sql = "UPDATE Categories SET selection_count = selection_count + 1 WHERE name = %s"
         cursor.execute(sql, (log_request.category,))
     db.commit()
     return
 
+@app.post("/speech-logs", status_code=201, summary="발화 기록 저장")
+def create_speech_log(log_request: SpeechLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
+    with db.cursor() as cursor:
+        sql = "INSERT INTO speech_logs (user_id, sentence, location) VALUES (1, %s, %s)"
+        cursor.execute(sql, (log_request.sentence, log_request.location))
+    db.commit()
+    return {"message": "Speech log created successfully."}
+
 @app.get("/favorites", response_model=List[FavoriteResponse], summary="즐겨찾기 목록 조회")
 def get_favorites(db: pymysql.connections.Connection = Depends(get_db)):
-    """(임시 user_id=1) 사용자의 모든 즐겨찾기 문장을 조회합니다."""
     with db.cursor() as cursor:
-        # 지금은 user_id=1 로 고정하지만, 나중에 로그인 기능이 생기면 변경됩니다.
         sql = "SELECT id, user_id, sentence FROM favorites WHERE user_id = 1 ORDER BY id DESC"
         cursor.execute(sql)
         return cursor.fetchall()
 
 @app.post("/favorites", response_model=FavoriteResponse, status_code=201, summary="즐겨찾기 추가")
 def add_favorite(favorite_request: FavoriteRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """(임시 user_id=1) 새로운 문장을 즐겨찾기에 추가합니다."""
     with db.cursor() as cursor:
         sql = "INSERT INTO favorites (user_id, sentence) VALUES (1, %s)"
         cursor.execute(sql, (favorite_request.sentence,))
