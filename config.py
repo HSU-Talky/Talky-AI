@@ -1,22 +1,7 @@
-# config.py (디버깅 강화 최종 버전)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
-# 1. 현재 코드가 실행되는 위치와 .env 파일의 예상 경로를 출력합니다.
-print("--- .env 파일 경로 확인 ---")
-current_working_directory = os.getcwd()
-env_path = os.path.join(current_working_directory, '.env')
-print(f"현재 작업 폴더: {current_working_directory}")
-
-# 2. 실제로 .env 파일이 그 위치에 있는지 확인합니다.
-if os.path.exists(env_path):
-    print(f"✅ .env 파일을 찾았습니다: {env_path}")
-else:
-    print(f"❌ 경고: 현재 폴더에서 .env 파일을 찾을 수 없습니다!")
-print("--------------------------\n")
-
-
-# --- 설정 클래스 정의 ---
+# 설정 클래스 정의
 class Settings(BaseSettings):
     """
     .env 파일에서 환경 변수를 읽어와 파이썬 객체로 관리합니다.
