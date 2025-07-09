@@ -1,170 +1,226 @@
-import json
-import asyncio
-import pymysql
-from fastapi import FastAPI, HTTPException, Query, Depends, Body
-from pydantic import BaseModel
-from typing import List, Optional
+#테스트용 코드
+import streamlit as st
 import httpx
+from datetime import datetime
 
-from config import settings
+# --- 1. 세션 상태(Session State) 초기화 ---
+# 'view' 상태를 사용해 '초기 화면', '추천 화면', '대화 이어가기' 화면을 전환합니다.
+if 'view' not in st.session_state:
+    st.session_state.view = 'initial'  # 'initial', 'recommendations', 'conversation'
+if 'recommendations' not in st.session_state:
+    st.session_state.recommendations = []
+if 'category' not in st.session_state:
+    st.session_state.category = ""
+if 'previous_sentence' not in st.session_state:
+    st.session_state.previous_sentence = ""
+if 'show_favorites' not in st.session_state:
+    st.session_state.show_favorites = False
+if 'favorites_list' not in st.session_state:
+    st.session_state.favorites_list = []
 
-# --- 1. FastAPI 앱 및 모델 정의 ---
-app = FastAPI(
-    title="AAC 대화형 문장 추천 API",
-    description="사용자의 상황과 대화의 흐름에 맞는 문장을 AI를 통해 생성하고 추천합니다.",
-    version="7.0.0" # 즐겨찾기 편집 기능 추가
-)
-
-class Sentence(BaseModel): id: int; text: str
-class RecommendationResponse(BaseModel): category: str; recommended_sentences: List[Sentence]
-class FavoriteRequest(BaseModel): sentence: str
-class FavoriteResponse(BaseModel): id: int; user_id: int; sentence: str; display_order: int
-class CategoryLogRequest(BaseModel): category: str
-class SpeechLogRequest(BaseModel): sentence: str; location: str
-# === 새로운 모델 추가 ===
-class FavoriteOrderRequest(BaseModel):
-    ordered_ids: List[int] # 순서가 정렬된 즐겨찾기 ID 목록
-
-
-# --- 2. DB 연결 의존성 ---
-def get_db():
+# --- 2. API 호출 함수 ---
+def get_recommendations_from_backend(manual_category, keywords, previous_sentence="", opponent_dialogue=""):
+    """백엔드 API를 호출하여 추천 문장을 받아오는 함수"""
+    backend_url = "http://127.0.0.1:8000/recommendations"
+    params = {
+        "manual_category": manual_category or "",
+        "keywords": keywords or "",
+        "previous_sentence": previous_sentence or "",
+        "opponent_dialogue": opponent_dialogue or ""
+    }
     try:
-        conn = pymysql.connect(
-            host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD,
-            database=settings.DB_NAME, charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor
-        )
-        yield conn
-    finally:
-        if conn: conn.close()
-
-
-# --- 3. 핵심 로직 함수들 (이전과 동일) ---
-# (get_category_from_qr, get_location_category, generate_ai_sentences 함수는 변경 없음)
-def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
-    with db.cursor() as cursor:
-        sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
-        cursor.execute(sql, (qr_data,))
-        result = cursor.fetchone()
-        return result['name'] if result else None
-async def get_location_category(lat: float, lon: float) -> Optional[str]:
-    category_map = {"HP8": "병원", "FD6": "식당", "CS2": "편의점", "SW8": "지하철역", "CE7": "카페", "SC4": "학교", "CT1": "문화시설"}
-    api_url = "https://dapi.kakao.com/v2/local/search/category.json"
-    headers = {"Authorization": f"KakaoAK {settings.KAKAO_API_KEY}"}
-    async def search_task(code: str, client: httpx.AsyncClient):
-        params = {"category_group_code": code, "x": lon, "y": lat, "radius": 200, "size": 1, "sort": "distance"}
-        try:
-            response = await client.get(api_url, headers=headers, params=params)
+        with st.spinner("AI가 상황에 맞는 문장을 생각하고 있습니다..."):
+            response = httpx.get(backend_url, params=params, timeout=60)
             response.raise_for_status()
-            result = response.json()
-            if result.get("documents"):
-                doc = result["documents"][0]
-                return {"category": category_map[code], "distance": int(doc.get("distance", 999))}
-        except Exception: return None
-    async with httpx.AsyncClient() as client:
-        tasks = [search_task(code, client) for code in category_map.keys()]
-        results = await asyncio.gather(*tasks)
-    found_places = [place for place in results if place]
-    if not found_places: return None
-    closest_place = min(found_places, key=lambda x: x['distance'])
-    return closest_place['category']
-async def generate_ai_sentences(category: str, keywords: Optional[str], previous_sentence: Optional[str], opponent_dialogue: Optional[str]) -> List[str]:
-    if previous_sentence:
-        prompt = f"""당신은 AAC 사용자를 위한 대화 전문가입니다. 당신은 항상 사용자(손님, 환자 등)의 입장에서 말해야 합니다. 다음 대화의 맥락을 파악하고, 사용자의 입장에서 자연스럽게 이어질 다음 문장 5개를 생성해주세요.
-        [현재 장소]: {category}, [사용자가 방금 한 말]: "{previous_sentence}", [상대방이 방금 한 말]: "{opponent_dialogue or "(입력 없음)"}", [사용자가 다음에 하고 싶은 말의 키워드]: {keywords or "없음"}
-        [출력 형식] "generated_sentences" 키를 가진 JSON 객체로, 값은 문자열 배열이어야 합니다."""
-    else:
-        prompt = f"""당신은 AAC 앱의 문장 생성 전문가입니다. 당신은 항상 사용자(손님, 환자 등)의 입장에서 대화를 시작하는 문장을 생성해야 합니다. "무엇을 도와드릴까요?"가 아닌, "주문할게요." 와 같은 사용자가 먼저 할 법한 요청이나 질문 5개를 생성해주세요.
-        [현재 장소]: {category}, [키워드]: {keywords or "없음"}
-        [출력 형식] "generated_sentences" 키를 가진 JSON 객체로, 값은 문자열 배열이어야 합니다."""
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={settings.GOOGLE_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7}}
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(api_url, json=payload, timeout=30)
-            response.raise_for_status()
-            ai_response = response.json()
-            text_content = ai_response["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text_content).get("generated_sentences", [])
+            return response.json()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
+        st.error(f"오류가 발생했습니다: {e}")
+        return None
 
+def get_favorites_from_backend():
+    """백엔드에서 즐겨찾기 목록을 가져오는 함수"""
+    try:
+        response = httpx.get("http://127.0.0.1:8000/favorites")
+        response.raise_for_status()
+        st.session_state.favorites_list = response.json()
+    except Exception as e:
+        st.error(f"즐겨찾기 목록을 불러오는 데 실패했습니다: {e}")
 
-# --- 4. API 엔드포인트들 ---
+def add_favorite_to_backend(sentence):
+    """문장을 즐겨찾기에 추가합니다."""
+    try:
+        response = httpx.post("http://127.0.0.1:8000/favorites", json={"sentence": sentence})
+        response.raise_for_status()
+        st.toast(f'"{sentence}" 문장을 즐겨찾기에 추가했습니다! ✅')
+        get_favorites_from_backend()
+    except Exception as e:
+        st.error(f"즐겨찾기 추가에 실패했습니다: {e}")
 
-@app.get("/recommendations", response_model=RecommendationResponse)
-async def get_recommendations(
-    lat: Optional[float] = Query(None), lon: Optional[float] = Query(None),
-    qr_data: Optional[str] = Query(None), keywords: Optional[str] = Query(None),
-    previous_sentence: Optional[str] = Query(None), opponent_dialogue: Optional[str] = Query(None),
-    manual_category: Optional[str] = Query(None), db: pymysql.connections.Connection = Depends(get_db)
-):
-    category = None
-    if manual_category: category = manual_category
-    elif qr_data: category = get_category_from_qr(db, qr_data)
-    elif lat is not None and lon is not None: category = await get_location_category(lat, lon)
-    if not category:
-        if previous_sentence: category = "일상 대화"
-        else: raise HTTPException(status_code=404, detail="위치 정보를 확인할 수 없습니다.")
-    generated_sentences = await generate_ai_sentences(category, keywords, previous_sentence, opponent_dialogue)
-    if not generated_sentences: raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
-    final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
-    return RecommendationResponse(category=category, recommended_sentences=final_sentences)
-
-@app.post("/speech-logs", status_code=201)
-def create_speech_log(log_request: SpeechLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    with db.cursor() as cursor:
-        sql = "INSERT INTO speech_logs (user_id, sentence, location) VALUES (1, %s, %s)"
-        cursor.execute(sql, (log_request.sentence, log_request.location))
-    db.commit()
-    return {"message": "Speech log created successfully."}
-
-# === 즐겨찾기 API 수정 및 추가 ===
-
-@app.get("/favorites", response_model=List[FavoriteResponse])
-def get_favorites(db: pymysql.connections.Connection = Depends(get_db)):
-    """(임시 user_id=1) 즐겨찾기 문장을 display_order 순서대로 조회합니다."""
-    with db.cursor() as cursor:
-        sql = "SELECT id, user_id, sentence, display_order FROM favorites WHERE user_id = 1 ORDER BY display_order ASC"
-        cursor.execute(sql)
-        return cursor.fetchall()
-
-@app.post("/favorites", response_model=FavoriteResponse, status_code=201)
-def add_favorite(favorite_request: FavoriteRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """새로운 문장을 즐겨찾기에 추가합니다. 가장 높은 display_order + 1 로 추가됩니다."""
-    with db.cursor() as cursor:
-        # 가장 높은 display_order 값을 찾습니다.
-        cursor.execute("SELECT MAX(display_order) as max_order FROM favorites WHERE user_id = 1")
-        max_order = cursor.fetchone()['max_order'] or 0
-        
-        sql = "INSERT INTO favorites (user_id, sentence, display_order) VALUES (1, %s, %s)"
-        cursor.execute(sql, (favorite_request.sentence, max_order + 1))
-        new_id = cursor.lastrowid
-    db.commit()
-    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence, display_order=max_order + 1)
-
-@app.delete("/favorites/{favorite_id}", status_code=204)
-def delete_favorite(favorite_id: int, db: pymysql.connections.Connection = Depends(get_db)):
+def delete_favorite_from_backend(favorite_id):
     """ID로 특정 즐겨찾기 문장을 삭제합니다."""
-    with db.cursor() as cursor:
-        sql = "DELETE FROM favorites WHERE id = %s AND user_id = 1"
-        cursor.execute(sql, (favorite_id,))
-    db.commit()
-    return
+    try:
+        response = httpx.delete(f"http://127.0.0.1:8000/favorites/{favorite_id}")
+        response.raise_for_status()
+        st.toast("즐겨찾기에서 삭제했습니다.")
+        get_favorites_from_backend() # 목록 새로고침
+    except Exception as e:
+        st.error(f"즐겨찾기 삭제에 실패했습니다: {e}")
 
-@app.put("/favorites/order", status_code=204)
-def update_favorites_order(order_request: FavoriteOrderRequest, db: pymysql.connections.Connection = Depends(get_db)):
+def update_favorites_order_in_backend(ordered_ids):
     """즐겨찾기 목록의 전체 순서를 업데이트합니다."""
-    with db.cursor() as cursor:
-        # CASE 문을 사용하여 여러 행을 한 번에 업데이트합니다.
-        sql = "UPDATE favorites SET display_order = CASE id "
-        for i, fav_id in enumerate(order_request.ordered_ids):
-            sql += f"WHEN {int(fav_id)} THEN {i} "
-        sql += "END WHERE id IN (%s)"
-        
-        # IN 절에 들어갈 플레이스홀더를 동적으로 생성합니다.
-        placeholders = ', '.join(['%s'] * len(order_request.ordered_ids))
-        sql = sql % placeholders
-        
-        cursor.execute(sql, order_request.ordered_ids)
-    db.commit()
-    return
+    try:
+        response = httpx.put("http://127.0.0.1:8000/favorites/order", json={"ordered_ids": ordered_ids})
+        response.raise_for_status()
+        st.toast("순서가 저장되었습니다.")
+    except Exception as e:
+        st.error(f"순서 저장에 실패했습니다: {e}")
+
+def reset_all():
+    """모든 대화 관련 세션 상태를 초기화합니다."""
+    st.session_state.view = 'initial'
+    st.session_state.recommendations = []
+    st.session_state.category = ""
+    st.session_state.previous_sentence = ""
+    st.session_state.show_favorites = False
+
+# --- 3. 화면 UI 구성 ---
+st.set_page_config(layout="centered")
+
+# --- 상단 헤더 ---
+col1, col2, col3 = st.columns([1, 2, 1])
+with col1:
+    st.button("로고", use_container_width=True, disabled=True)
+with col3:
+    st.button("긴급호출", use_container_width=True, type="primary")
+
+col1, col2 = st.columns(2)
+col1.metric("현재 시간", datetime.now().strftime("%p %I:%M"))
+col2.metric("위치", st.session_state.get('category', '알 수 없음'))
+
+col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+col1.text_input("문장 직접 입력창", placeholder="직접 문장을 입력하여 발화할 수 있습니다.", label_visibility="collapsed")
+col2.button("⭐", help="즐겨찾기에서 찾기")
+col3.button("🗣️", help="발화하기")
+
+st.markdown("---")
+
+# --- 4. 화면 상태에 따른 분기 처리 ---
+
+# Case 1: 문장 추천을 받은 후 화면
+if st.session_state.view == 'recommendations':
+    st.subheader("추천 문장")
+
+    # 추천 문장 목록 표시
+    if st.session_state.recommendations:
+        for sentence in st.session_state.recommendations:
+            col_sent, col_fav = st.columns([0.85, 0.15])
+            with col_sent:
+                if st.button(sentence['text'], use_container_width=True, key=f"rec_{sentence['id']}"):
+                    st.session_state.previous_sentence = sentence['text']
+                    st.session_state.view = 'conversation' # '대화 이어가기' 상태로 전환
+                    st.rerun()
+            with col_fav:
+                if st.button("⭐", key=f"fav_{sentence['id']}", help="즐겨찾기에 추가"):
+                    add_favorite_to_backend(sentence['text'])
+    else:
+        st.warning("추천 문장을 불러오지 못했습니다.")
+
+    # 새로고침 기능
+    with st.expander("다른 문장 추천받기 (새로고침)"):
+        refresh_keywords = st.text_input("새로운 키워드를 입력하여 다시 추천받을 수 있습니다:", key="refresh_keywords")
+        if st.button("🔄 새로고침", key="refresh_button"):
+            data = get_recommendations_from_backend(st.session_state.category, refresh_keywords)
+            if data:
+                st.session_state.recommendations = data['recommended_sentences']
+                st.rerun()
+
+    if st.button("새로운 대화 시작하기", type="secondary"):
+        reset_all()
+        st.rerun()
+
+# Case 2: 대화 이어가기 화면
+elif st.session_state.view == 'conversation':
+    st.header("다음 대화 이어가기")
+    st.write(f"**내가 한 말:** \"{st.session_state.previous_sentence}\"")
+    
+    opponent_dialogue = st.text_area("상대방이 한 말을 입력하세요 (선택 사항):", key="opponent_dialogue")
+    next_keywords = st.text_input("다음에 할 말의 키워드를 입력하세요:", key="next_keywords")
+    
+    if st.button("다음 문장 추천받기", use_container_width=True):
+        data = get_recommendations_from_backend(
+            st.session_state.category,
+            next_keywords,
+            st.session_state.previous_sentence,
+            opponent_dialogue
+        )
+        if data:
+            st.session_state.view = 'recommendations'
+            st.session_state.recommendations = data['recommended_sentences']
+            st.session_state.previous_sentence = "" # 이전 문장 초기화
+            st.rerun()
+            
+    if st.button("대화 끝내기", type="secondary"):
+        reset_all()
+        st.rerun()
+
+# Case 3: 초기 화면
+else:
+    st.subheader("현재 상황을 설명해주세요!")
+    
+    keywords = st.text_input("상황 입력", placeholder="장소, 현재 상태를 간단하게 입력 (예: 식당, 주문)", label_visibility="collapsed")
+    
+    locations = ["병원", "식당", "학교", "마트", "교통", "은행", "약국", "기타"]
+    cols = st.columns(4)
+    
+    for i, location in enumerate(locations):
+        if cols[i % 4].button(location, key=f"loc_{location}", use_container_width=True):
+            category_to_send = "일상" if location == "기타" else location
+            data = get_recommendations_from_backend(category_to_send, keywords)
+            if data:
+                st.session_state.view = 'recommendations'
+                st.session_state.recommendations = data['recommended_sentences']
+                st.session_state.category = data['category']
+                st.rerun()
+
+st.markdown("---")
+
+# --- 하단 기능 버튼 ---
+col1, col2 = st.columns(2)
+if col1.button("⭐ 즐겨찾기", use_container_width=True):
+    st.session_state.show_favorites = not st.session_state.show_favorites
+    if st.session_state.show_favorites:
+        get_favorites_from_backend()
+
+col2.button("🗣️ 말하기 연습", use_container_width=True)
+
+# --- 즐겨찾기 목록 표시 ---
+if st.session_state.show_favorites:
+    st.subheader("⭐ 즐겨찾기 목록")
+    if st.session_state.favorites_list:
+        # 순서 변경 로직
+        fav_list = st.session_state.favorites_list
+        for i in range(len(fav_list)):
+            col_num, col_text, col_up, col_down, col_del = st.columns([0.1, 0.6, 0.1, 0.1, 0.1])
+            
+            col_num.write(f"**{i+1}.**")
+            col_text.write(fav_list[i]['sentence'])
+            
+            if col_up.button("▲", key=f"up_{i}", help="위로 이동"):
+                if i > 0:
+                    fav_list.insert(i-1, fav_list.pop(i))
+                    ordered_ids = [fav['id'] for fav in fav_list]
+                    update_favorites_order_in_backend(ordered_ids)
+                    st.rerun()
+            
+            if col_down.button("▼", key=f"down_{i}", help="아래로 이동"):
+                if i < len(fav_list) - 1:
+                    fav_list.insert(i+1, fav_list.pop(i))
+                    ordered_ids = [fav['id'] for fav in fav_list]
+                    update_favorites_order_in_backend(ordered_ids)
+                    st.rerun()
+
+            if col_del.button("🗑️", key=f"del_{i}", help="삭제"):
+                delete_favorite_from_backend(fav_list[i]['id'])
+                st.rerun()
+    else:
+        st.write("아직 즐겨찾기한 문장이 없습니다.")
