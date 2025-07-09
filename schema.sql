@@ -87,7 +87,7 @@ CREATE TABLE speech_logs (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 초기 데이터 삽입 (선택 사항)
+-- 초기 데이터 삽입
 INSERT INTO Categories (name) VALUES
 ('병원'), ('식당'), ('카페'), ('편의점'), ('지하철역'), ('도서관'), ('기타'), ('일상 대화');
 
