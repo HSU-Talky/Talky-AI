@@ -39,7 +39,6 @@ def get_db():
 
 
 # --- 3. 핵심 로직 함수들 (이전과 동일) ---
-# (get_category_from_qr, get_location_category, generate_ai_sentences 함수는 변경 없음)
 def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
     with db.cursor() as cursor:
         sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
