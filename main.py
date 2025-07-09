@@ -21,7 +21,6 @@ class FavoriteRequest(BaseModel): sentence: str
 class FavoriteResponse(BaseModel): id: int; user_id: int; sentence: str; display_order: int
 class CategoryLogRequest(BaseModel): category: str
 class SpeechLogRequest(BaseModel): sentence: str; location: str
-# === 새로운 모델 추가 ===
 class FavoriteOrderRequest(BaseModel):
     ordered_ids: List[int] # 순서가 정렬된 즐겨찾기 ID 목록
 
