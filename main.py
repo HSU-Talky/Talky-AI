@@ -140,31 +140,4 @@ def add_favorite(favorite_request: FavoriteRequest, db: pymysql.connections.Conn
         cursor.execute(sql, (favorite_request.sentence, max_order + 1))
         new_id = cursor.lastrowid
     db.commit()
-    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence, display_order=max_order + 1)
-
-@app.delete("/favorites/{favorite_id}", status_code=204)
-def delete_favorite(favorite_id: int, db: pymysql.connections.Connection = Depends(get_db)):
-    """ID로 특정 즐겨찾기 문장을 삭제합니다."""
-    with db.cursor() as cursor:
-        sql = "DELETE FROM favorites WHERE id = %s AND user_id = 1"
-        cursor.execute(sql, (favorite_id,))
-    db.commit()
-    return
-
-@app.put("/favorites/order", status_code=204)
-def update_favorites_order(order_request: FavoriteOrderRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """즐겨찾기 목록의 전체 순서를 업데이트합니다."""
-    with db.cursor() as cursor:
-        # CASE 문을 사용하여 여러 행을 한 번에 업데이트합니다.
-        sql = "UPDATE favorites SET display_order = CASE id "
-        for i, fav_id in enumerate(order_request.ordered_ids):
-            sql += f"WHEN {int(fav_id)} THEN {i} "
-        sql += "END WHERE id IN (%s)"
-        
-        # IN 절에 들어갈 플레이스홀더를 동적으로 생성합니다.
-        placeholders = ', '.join(['%s'] * len(order_request.ordered_ids))
-        sql = sql % placeholders
-        
-        cursor.execute(sql, order_request.ordered_ids)
-    db.commit()
-    return
+    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence)
