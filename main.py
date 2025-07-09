@@ -38,7 +38,7 @@ def get_db():
         if conn: conn.close()
 
 
-# --- 3. 핵심 로직 함수들 (이전과 동일) ---
+# --- 3. 핵심 로직 함수들 ---
 def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
     with db.cursor() as cursor:
         sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
