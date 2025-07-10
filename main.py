@@ -12,7 +12,7 @@ from config import settings
 app = FastAPI(
     title="AAC 대화형 문장 추천 API",
     description="사용자의 상황과 대화의 흐름에 맞는 문장을 AI를 통해 생성하고 추천합니다.",
-    version="7.0.0" # 즐겨찾기 편집 기능 추가
+    version="8.1.0" # QR 기능 제외
 )
 
 class Sentence(BaseModel): id: int; text: str
@@ -21,9 +21,7 @@ class FavoriteRequest(BaseModel): sentence: str
 class FavoriteResponse(BaseModel): id: int; user_id: int; sentence: str; display_order: int
 class CategoryLogRequest(BaseModel): category: str
 class SpeechLogRequest(BaseModel): sentence: str; location: str
-class FavoriteOrderRequest(BaseModel):
-    ordered_ids: List[int] # 순서가 정렬된 즐겨찾기 ID 목록
-
+class FavoriteOrderRequest(BaseModel): ordered_ids: List[int]
 
 # --- 2. DB 연결 의존성 ---
 def get_db():
@@ -36,14 +34,8 @@ def get_db():
     finally:
         if conn: conn.close()
 
-
 # --- 3. 핵심 로직 함수들 ---
-def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
-    with db.cursor() as cursor:
-        sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
-        cursor.execute(sql, (qr_data,))
-        result = cursor.fetchone()
-        return result['name'] if result else None
+
 async def get_location_category(lat: float, lon: float) -> Optional[str]:
     category_map = {"HP8": "병원", "FD6": "식당", "CS2": "편의점", "SW8": "지하철역", "CE7": "카페", "SC4": "학교", "CT1": "문화시설"}
     api_url = "https://dapi.kakao.com/v2/local/search/category.json"
@@ -65,6 +57,7 @@ async def get_location_category(lat: float, lon: float) -> Optional[str]:
     if not found_places: return None
     closest_place = min(found_places, key=lambda x: x['distance'])
     return closest_place['category']
+
 async def generate_ai_sentences(category: str, keywords: Optional[str], previous_sentence: Optional[str], opponent_dialogue: Optional[str]) -> List[str]:
     if previous_sentence:
         prompt = f"""당신은 AAC 사용자를 위한 대화 전문가입니다. 당신은 항상 사용자(손님, 환자 등)의 입장에서 말해야 합니다. 다음 대화의 맥락을 파악하고, 사용자의 입장에서 자연스럽게 이어질 다음 문장 5개를 생성해주세요.
@@ -86,28 +79,33 @@ async def generate_ai_sentences(category: str, keywords: Optional[str], previous
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
-
 # --- 4. API 엔드포인트들 ---
 
-@app.get("/recommendations", response_model=RecommendationResponse)
+@app.get("/recommendations", response_model=RecommendationResponse, summary="AI 문장 추천 받기")
 async def get_recommendations(
+    # qr_data 파라미터 제거
     lat: Optional[float] = Query(None), lon: Optional[float] = Query(None),
-    qr_data: Optional[str] = Query(None), keywords: Optional[str] = Query(None),
+    keywords: Optional[str] = Query(None),
     previous_sentence: Optional[str] = Query(None), opponent_dialogue: Optional[str] = Query(None),
-    manual_category: Optional[str] = Query(None), db: pymysql.connections.Connection = Depends(get_db)
+    manual_category: Optional[str] = Query(None),
+    db: pymysql.connections.Connection = Depends(get_db)
 ):
+    """사용자가 선택한 장소 또는 GPS 정보를 기반으로 AI 추천 문장을 생성합니다."""
     category = None
+    # 장소 파악 우선순위: 1. 수동 선택 > 2. GPS
     if manual_category: category = manual_category
-    elif qr_data: category = get_category_from_qr(db, qr_data)
     elif lat is not None and lon is not None: category = await get_location_category(lat, lon)
+    
     if not category:
         if previous_sentence: category = "일상 대화"
         else: raise HTTPException(status_code=404, detail="위치 정보를 확인할 수 없습니다.")
+        
     generated_sentences = await generate_ai_sentences(category, keywords, previous_sentence, opponent_dialogue)
     if not generated_sentences: raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
     return RecommendationResponse(category=category, recommended_sentences=final_sentences)
 
+# (나머지 /speech-logs, /favorites 등의 API는 변경 없음)
 @app.post("/speech-logs", status_code=201)
 def create_speech_log(log_request: SpeechLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
     with db.cursor() as cursor:
@@ -116,11 +114,16 @@ def create_speech_log(log_request: SpeechLogRequest, db: pymysql.connections.Con
     db.commit()
     return {"message": "Speech log created successfully."}
 
-# === 즐겨찾기 API 수정 및 추가 ===
+@app.post("/log/category-selection", status_code=204)
+def log_category_selection(log_request: CategoryLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
+    with db.cursor() as cursor:
+        sql = "UPDATE Categories SET selection_count = selection_count + 1 WHERE name = %s"
+        cursor.execute(sql, (log_request.category,))
+    db.commit()
+    return
 
 @app.get("/favorites", response_model=List[FavoriteResponse])
 def get_favorites(db: pymysql.connections.Connection = Depends(get_db)):
-    """(임시 user_id=1) 즐겨찾기 문장을 display_order 순서대로 조회합니다."""
     with db.cursor() as cursor:
         sql = "SELECT id, user_id, sentence, display_order FROM favorites WHERE user_id = 1 ORDER BY display_order ASC"
         cursor.execute(sql)
@@ -128,14 +131,32 @@ def get_favorites(db: pymysql.connections.Connection = Depends(get_db)):
 
 @app.post("/favorites", response_model=FavoriteResponse, status_code=201)
 def add_favorite(favorite_request: FavoriteRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """새로운 문장을 즐겨찾기에 추가합니다. 가장 높은 display_order + 1 로 추가됩니다."""
     with db.cursor() as cursor:
-        # 가장 높은 display_order 값을 찾습니다.
         cursor.execute("SELECT MAX(display_order) as max_order FROM favorites WHERE user_id = 1")
         max_order = cursor.fetchone()['max_order'] or 0
-        
         sql = "INSERT INTO favorites (user_id, sentence, display_order) VALUES (1, %s, %s)"
         cursor.execute(sql, (favorite_request.sentence, max_order + 1))
         new_id = cursor.lastrowid
     db.commit()
-    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence)
+    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence, display_order=max_order + 1)
+
+@app.delete("/favorites/{favorite_id}", status_code=204)
+def delete_favorite(favorite_id: int, db: pymysql.connections.Connection = Depends(get_db)):
+    with db.cursor() as cursor:
+        sql = "DELETE FROM favorites WHERE id = %s AND user_id = 1"
+        cursor.execute(sql, (favorite_id,))
+    db.commit()
+    return
+
+@app.put("/favorites/order", status_code=204)
+def update_favorites_order(order_request: FavoriteOrderRequest, db: pymysql.connections.Connection = Depends(get_db)):
+    with db.cursor() as cursor:
+        sql = "UPDATE favorites SET display_order = CASE id "
+        for i, fav_id in enumerate(order_request.ordered_ids):
+            sql += f"WHEN {int(fav_id)} THEN {i} "
+        sql += "END WHERE id IN (%s)"
+        placeholders = ', '.join(['%s'] * len(order_request.ordered_ids))
+        sql = sql % placeholders
+        cursor.execute(sql, order_request.ordered_ids)
+    db.commit()
+    return
