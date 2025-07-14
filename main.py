@@ -15,14 +15,14 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# /recommendations 용 모델
-class Sentence(BaseModel): id: int; text: str
-class RecommendationResponse(BaseModel): category: str; recommended_sentences: List[Sentence]
+# /recommendations
+class Sentence(BaseModel):
+    id: int
+    text: str
 
-# /practice/quiz 용 모델
-class PracticeReply(BaseModel): text: str; is_correct: bool
-class PracticeTurnResponse(BaseModel): opponent_dialogue: str; user_replies: List[PracticeReply]
-class PracticeTurnRequest(BaseModel): category: str; conversation_history: List[Dict[str, str]]
+class RecommendationResponse(BaseModel):
+    category: str
+    recommended_sentences: List[Sentence]
 
 # --- 2. 핵심 로직 함수들 ---
 async def get_location_category(lat: float, lon: float) -> Optional[str]:
@@ -74,27 +74,6 @@ async def generate_ai_sentences(category: str, keywords: Optional[str], previous
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
-async def generate_practice_quiz(category: str, history: List[Dict[str, str]]) -> Dict:
-    """AI에게 역할극 퀴즈(정답/오답 포함)를 생성하도록 요청합니다."""
-    history_str = "\n".join([f"{turn['speaker']}: {turn['message']}" for turn in history])
-    prompt = f"""
-        당신은 AAC 사용자를 위한 역할극 퀴즈 출제자입니다. 당신의 역할은 주어진 [현재 장소]의 점원, 의사 등입니다.
-        주어진 [대화 기록]을 바탕으로, 당신의 다음 대사 한 문장과, 그에 대한 사용자의 답변 선택지 3개를 생성해주세요.
-        [규칙] 답변 선택지 3개 중, 1~2개는 정답, 나머지는 오답이어야 합니다.
-        [출력 형식] "opponent_dialogue"(string)와 "user_replies"(array of objects with "text" and "is_correct" keys) 키를 가진 JSON 객체여야 합니다.
-    """
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={settings.GOOGLE_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0.9}}
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(api_url, json=payload, timeout=30)
-            response.raise_for_status()
-            ai_response = response.json()
-            text_content = ai_response["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(text_content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI 역할극 생성 중 오류 발생: {e}")
-
 
 # --- 3. API 엔드포인트들 ---
 
@@ -123,12 +102,3 @@ async def get_recommendations(
         raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
     return RecommendationResponse(category=category, recommended_sentences=final_sentences)
-
-@app.post("/practice/quiz", response_model=PracticeTurnResponse, summary="AI 말하기 연습 퀴즈 받기")
-async def get_practice_quiz(request: PracticeTurnRequest):
-    """'말하기 연습'의 다음 턴에 필요한 상대방 대사와 선택지를 생성합니다."""
-    result = await generate_practice_quiz(request.category, request.conversation_history)
-    return PracticeTurnResponse(
-        opponent_dialogue=result.get("opponent_dialogue", "다음 할 말을 생각하고 있어요..."),
-        user_replies=result.get("user_replies", [])
-    )
