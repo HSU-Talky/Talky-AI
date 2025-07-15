@@ -6,19 +6,19 @@ import httpx
 
 from config import settings
 
-# --- 1. FastAPI 앱 및 모델 정의 ---
+# 1. FastAPI 앱 및 모델 정의
 app = FastAPI(
     title="Talky-AI Service",
     description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
-    version="5.0.0" # 핵심 기능 집중 버전
+    version="2025.07.15",  # context/conversation Optional 처리 및 null 허용 대응
 )
 
 # /recommendations API를 위한 모델들
 class RecommendationRequest(BaseModel):
     keywords: List[str] = Field(..., description="장소, 상황 등을 나타내는 키워드 목록", example=["병원", "두통"])
-    context: str = Field(..., description="사용자가 직접 입력한 현재 상황 설명", example="머리가 아파서 왔어요")
-    conversation: List[str] = Field(..., description="최근 대화 기록 (사용자, 상대방 포함)", example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."])
-    favorites: List[str] = Field(..., description="사용자가 즐겨찾기한 문장 목록", example=["이거 주세요", "감사합니다"])
+    context: str = Field(None, description="사용자가 직접 입력한 현재 상황 설명", example="머리가 아파서 왔어요") # null 허용
+    conversation: List[str] = Field(None, description="최근 대화 기록 (사용자, 상대방 포함)", example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
+    favorites: List[str] = Field(default_factory=list, description="사용자가 즐겨찾기한 문장 목록", example=["이거 주세요", "감사합니다"]) # 없어도 빈 리스트로 처리될 수 있게 함
 
 class Sentence(BaseModel):
     id: int
@@ -29,7 +29,7 @@ class RecommendationResponse(BaseModel):
     recommended_sentences: List[Sentence]
 
 
-# --- 2. 핵심 AI 로직 함수 ---
+#  2.  AI 로직 함수 
 
 async def generate_ai_sentences_with_rich_context(request: RecommendationRequest) -> List[str]:
     """컨텍스트를 기반으로 Gemini AI를 호출하여 문장을 생성합니다."""
@@ -47,7 +47,7 @@ async def generate_ai_sentences_with_rich_context(request: RecommendationRequest
 
         [사용자 정보]
         - 주요 키워드(장소, 상황): {keywords_str}
-        - 사용자가 직접 입력한 상황: "{request.context}"
+        - 사용자가 직접 입력한 상황: "{request.context or '없음'}"
         - 사용자가 즐겨찾기한 문장들 (사용자의 평소 말투 힌트): {favorites_str if request.favorites else "없음"}
 
         [최근 대화 기록]
@@ -76,7 +76,7 @@ async def generate_ai_sentences_with_rich_context(request: RecommendationRequest
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
 
-# --- 3. API 엔드포인트 ---
+# 3. API 엔드포인트
 
 @app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
 async def get_recommendations(request: RecommendationRequest):
@@ -90,7 +90,7 @@ async def get_recommendations(request: RecommendationRequest):
         
     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
     # 문장에 번호를 붙여서 전달
-    
+
     # 대표 카테고리는 keywords의 첫 번째 항목으로 설정
     main_category = request.keywords[0] if request.keywords else "일상"
     
