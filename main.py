@@ -17,8 +17,8 @@ app = FastAPI(
 class RecommendationRequest(BaseModel):
     keywords: List[str] = Field(..., description="장소, 상황 등을 나타내는 키워드 목록", example=["병원", "두통"])
     context: str = Field(None, description="사용자가 직접 입력한 현재 상황 설명", example="머리가 아파서 왔어요") # null 허용
-    conversation: List[str] = Field(None, description="최근 대화 기록 (사용자, 상대방 포함)", example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
-    favorites: List[str] = Field(default_factory=list, description="사용자가 즐겨찾기한 문장 목록", example=["이거 주세요", "감사합니다"]) # 없어도 빈 리스트로 처리될 수 있게 함
+    conversations: Optional[List[str]] = Field(None, description="최근 대화 기록 (사용자, 상대방 포함)", example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
+    favorites: Optional[List[str]] = Field(default_factory=list, description="사용자가 즐겨찾기한 문장 목록", example=["이거 주세요", "감사합니다"]) # 없어도 빈 리스트로 처리될 수 있게 함
 
 class Sentence(BaseModel):
     id: int
@@ -36,8 +36,14 @@ async def generate_ai_sentences_with_rich_context(request: RecommendationRequest
     
     # 프롬프트에 전달할 정보들을 문자열로 변환
     keywords_str = ", ".join(request.keywords)
-    conversation_str = "\n".join([f"- {line}" for line in request.conversation])
-    favorites_str = ", ".join(request.favorites)
+    if request.conversations:
+        conversations_str = "\n".join([f"- {line}" for line in request.conversations])
+    else:
+        conversations_str = ""
+    if request.favorites:
+        favorites_str = ", ".join(request.favorites)
+    else:
+        favorites_str = ""
 
     print(f"AI 문장 생성 요청 수신: keywords='{keywords_str}'")
 
@@ -51,7 +57,7 @@ async def generate_ai_sentences_with_rich_context(request: RecommendationRequest
         - 사용자가 즐겨찾기한 문장들 (사용자의 평소 말투 힌트): {favorites_str if request.favorites else "없음"}
 
         [최근 대화 기록]
-        {conversation_str if request.conversation else "(대화 시작 전)"}
+        {conversations_str if request.conversations else "(대화 시작 전)"}
 
         [생성 규칙]
         1. 위 모든 정보를 바탕으로, 대화의 흐름을 자연스럽게 이어갈 다음 문장을 생성하세요.
@@ -81,7 +87,7 @@ async def generate_ai_sentences_with_rich_context(request: RecommendationRequest
 @app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
 async def get_recommendations(request: RecommendationRequest):
     """메인 백엔드로부터 전달받은 풍부한 컨텍스트로 AI 추천 문장을 생성합니다."""
-    
+
     # AI 문장 생성 함수 호출
     generated_sentences = await generate_ai_sentences_with_rich_context(request)
     
