@@ -6,7 +6,7 @@ import httpx
 
 from config import settings
 
-# 1. FastAPI 앱 및 모델 정의
+# FastAPI 앱 및 모델 정의
 app = FastAPI(
     title="Talky-AI Service",
     description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
@@ -29,14 +29,14 @@ class RecommendationResponse(BaseModel):
     recommended_sentences: List[Sentence]
 
 
-#  2.  AI 로직 함수 
+# AI 로직 함수 
 
 async def find_relevant_favorites(request: RecommendationRequest) -> List[str]:
     """현재 상황과 직접적으로 관련된 즐겨찾기 문장을 찾아냅니다."""
     if not request.favorites:
         return []
 
-    # 대화의 가장 마지막 내용 (가장 최근)
+    # 대화의 가장 마지막 내용
     last_dialogue = request.conversation[0] if request.conversation else "없음"
     
     prompt = f"""
@@ -71,8 +71,6 @@ async def generate_additional_sentences(request: RecommendationRequest, existing
     """이미 찾은 문장을 제외하고, 추가적인 추천 문장을 생성합니다."""
     
     keywords_str = ", ".join(request.keywords)
-    # === 여기가 수정된 부분입니다! (대화 순서 인지) ===
-    # conversation 배열이 최신순(First In)임을 AI에게 명확히 알려줍니다.
     conversation_str = "\n".join([f"- {line}" for line in (request.conversation or [])])
     favorites_str = ", ".join(request.favorites or [])
     context_str = request.context or "없음"
@@ -111,7 +109,7 @@ async def generate_additional_sentences(request: RecommendationRequest, existing
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
 
-# 3. API 엔드포인트
+# API 엔드포인트
 
 @app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
 async def get_recommendations(request: RecommendationRequest):
@@ -124,7 +122,7 @@ async def get_recommendations(request: RecommendationRequest):
     if len(relevant_favorites) < 4:
         additional_sentences = await generate_additional_sentences(request, relevant_favorites)
     
-    # 3단계: 두 결과를 합쳐서 최종 추천 목록을 만듭니다.
+    # 두 결과를 합쳐서 최종 추천 목록을 만듭니다.
     final_sentence_texts = relevant_favorites + additional_sentences
     
     if not final_sentence_texts:

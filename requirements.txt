@@ -1,6 +1,12 @@
+# FastAPI 및 서버 실행
 fastapi
 uvicorn[standard]
-pydantic
-python-dotenv
+
+# 외부 API 호출 (카카오, Gemini)
 httpx
-pymysql
+
+# 설정 관리
+pydantic-settings
+
+# 테스트용 앱
+streamlit

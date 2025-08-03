@@ -14,7 +14,7 @@ CREATE TABLE Tags (
     name VARCHAR(50) NOT NULL UNIQUE
 );
 
--- 2. 고정 문장 관련 테이블 (DB 기반 추천 시 사용)
+-- 2. 고정 문장 관련 테이블 
 CREATE TABLE Sentences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     text VARCHAR(255) NOT NULL,
@@ -37,19 +37,7 @@ CREATE TABLE Sentence_Tag_Map (
     FOREIGN KEY (sentence_id) REFERENCES Sentences(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE CASCADE
 );
-
--- 3. 위치 기반 트리거 테이블
-CREATE TABLE Location_Triggers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    trigger_type ENUM('NFC', 'QR') NOT NULL,
-    trigger_value VARCHAR(255) NOT NULL UNIQUE,
-    category_id INT,
-    specific_sentence_id INT,
-    FOREIGN KEY (category_id) REFERENCES Categories(id) ON DELETE SET NULL,
-    FOREIGN KEY (specific_sentence_id) REFERENCES Sentences(id) ON DELETE SET NULL
-);
-
--- 4. 사용자 및 보호자 관련 테이블
+-- 3. 사용자 및 보호자 관련 테이블
 CREATE TABLE guardians (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -68,7 +56,7 @@ CREATE TABLE users (
     FOREIGN KEY (guardian_id) REFERENCES guardians(id) ON DELETE SET NULL
 );
 
--- 5. 사용자 개인화 기능 테이블
+-- 4. 사용자 개인화 기능 테이블
 CREATE TABLE favorites (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -76,6 +64,7 @@ CREATE TABLE favorites (
     display_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (category_id) REFERENCES Categories(id) ON DELETE CASCADE
 );
 
 CREATE TABLE speech_logs (
@@ -87,7 +76,7 @@ CREATE TABLE speech_logs (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- 초기 데이터 삽입 (선택 사항)
+-- 초기 데이터 삽입
 INSERT INTO Categories (name) VALUES
 ('병원'), ('식당'), ('카페'), ('편의점'), ('지하철역'), ('도서관'), ('기타'), ('일상 대화');
 
