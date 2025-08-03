@@ -9,4 +9,8 @@ httpx
 pydantic-settings
 
 # 테스트용 앱
+<<<<<<< HEAD
 streamlit
+=======
+streamlit
+>>>>>>> e06161f501013ba0ef2554f54b04e5b20277d626
