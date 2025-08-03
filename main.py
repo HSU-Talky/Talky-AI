@@ -1,83 +1,105 @@
 import json
-import asyncio
-import pymysql
-from fastapi import FastAPI, HTTPException, Query, Depends, Body
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
 from typing import List, Optional
 import httpx
 
 from config import settings
 
-# --- 1. FastAPI 앱 및 모델 정의 ---
+# 1. FastAPI 앱 및 모델 정의
 app = FastAPI(
-    title="AAC 대화형 문장 추천 API",
-    description="사용자의 상황과 대화의 흐름에 맞는 문장을 AI를 통해 생성하고 추천합니다.",
-    version="7.0.0" # 즐겨찾기 편집 기능 추가
+    title="Talky-AI Service",
+    description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
+    version="2025.08.04",  # 프롬프트 수정
 )
 
-class Sentence(BaseModel): id: int; text: str
-class RecommendationResponse(BaseModel): category: str; recommended_sentences: List[Sentence]
-class FavoriteRequest(BaseModel): sentence: str
-class FavoriteResponse(BaseModel): id: int; user_id: int; sentence: str; display_order: int
-class CategoryLogRequest(BaseModel): category: str
-class SpeechLogRequest(BaseModel): sentence: str; location: str
-# === 새로운 모델 추가 ===
-class FavoriteOrderRequest(BaseModel):
-    ordered_ids: List[int] # 순서가 정렬된 즐겨찾기 ID 목록
+# /recommendations API를 위한 모델들
+class RecommendationRequest(BaseModel):
+    keywords: List[str] = Field(..., description="장소, 상황 등을 나타내는 키워드 목록", example=["병원", "두통"])
+    context: Optional[str] = Field(None, description="사용자가 직접 입력한 현재 상황 설명", example="머리가 아파서 왔어요") # null 허용
+    conversation: Optional[List[str]] = Field(None, description="최근 대화 기록 (사용자, 상대방 포함)", example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
+    favorites: Optional[List[str]] = Field(default_factory=list, description="사용자가 즐겨찾기한 문장 목록", example=["이거 주세요", "감사합니다"]) # 없어도 빈 리스트로 처리될 수 있게 함
+
+class Sentence(BaseModel):
+    id: int
+    text: str
+
+class RecommendationResponse(BaseModel):
+    category: str
+    recommended_sentences: List[Sentence]
 
 
-# --- 2. DB 연결 의존성 ---
-def get_db():
-    try:
-        conn = pymysql.connect(
-            host=settings.DB_HOST, user=settings.DB_USER, password=settings.DB_PASSWORD,
-            database=settings.DB_NAME, charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor
-        )
-        yield conn
-    finally:
-        if conn: conn.close()
+#  2.  AI 로직 함수 
 
+async def find_relevant_favorites(request: RecommendationRequest) -> List[str]:
+    """현재 상황과 직접적으로 관련된 즐겨찾기 문장을 찾아냅니다."""
+    if not request.favorites:
+        return []
 
-# --- 3. 핵심 로직 함수들 (이전과 동일) ---
-# (get_category_from_qr, get_location_category, generate_ai_sentences 함수는 변경 없음)
-def get_category_from_qr(db: pymysql.connections.Connection, qr_data: str) -> Optional[str]:
-    with db.cursor() as cursor:
-        sql = "SELECT c.name FROM Location_Triggers lt JOIN Categories c ON lt.category_id = c.id WHERE lt.trigger_type = 'QR' AND lt.trigger_value = %s"
-        cursor.execute(sql, (qr_data,))
-        result = cursor.fetchone()
-        return result['name'] if result else None
-async def get_location_category(lat: float, lon: float) -> Optional[str]:
-    category_map = {"HP8": "병원", "FD6": "식당", "CS2": "편의점", "SW8": "지하철역", "CE7": "카페", "SC4": "학교", "CT1": "문화시설"}
-    api_url = "https://dapi.kakao.com/v2/local/search/category.json"
-    headers = {"Authorization": f"KakaoAK {settings.KAKAO_API_KEY}"}
-    async def search_task(code: str, client: httpx.AsyncClient):
-        params = {"category_group_code": code, "x": lon, "y": lat, "radius": 200, "size": 1, "sort": "distance"}
-        try:
-            response = await client.get(api_url, headers=headers, params=params)
-            response.raise_for_status()
-            result = response.json()
-            if result.get("documents"):
-                doc = result["documents"][0]
-                return {"category": category_map[code], "distance": int(doc.get("distance", 999))}
-        except Exception: return None
-    async with httpx.AsyncClient() as client:
-        tasks = [search_task(code, client) for code in category_map.keys()]
-        results = await asyncio.gather(*tasks)
-    found_places = [place for place in results if place]
-    if not found_places: return None
-    closest_place = min(found_places, key=lambda x: x['distance'])
-    return closest_place['category']
-async def generate_ai_sentences(category: str, keywords: Optional[str], previous_sentence: Optional[str], opponent_dialogue: Optional[str]) -> List[str]:
-    if previous_sentence:
-        prompt = f"""당신은 AAC 사용자를 위한 대화 전문가입니다. 당신은 항상 사용자(손님, 환자 등)의 입장에서 말해야 합니다. 다음 대화의 맥락을 파악하고, 사용자의 입장에서 자연스럽게 이어질 다음 문장 5개를 생성해주세요.
-        [현재 장소]: {category}, [사용자가 방금 한 말]: "{previous_sentence}", [상대방이 방금 한 말]: "{opponent_dialogue or "(입력 없음)"}", [사용자가 다음에 하고 싶은 말의 키워드]: {keywords or "없음"}
-        [출력 형식] "generated_sentences" 키를 가진 JSON 객체로, 값은 문자열 배열이어야 합니다."""
-    else:
-        prompt = f"""당신은 AAC 앱의 문장 생성 전문가입니다. 당신은 항상 사용자(손님, 환자 등)의 입장에서 대화를 시작하는 문장을 생성해야 합니다. "무엇을 도와드릴까요?"가 아닌, "주문할게요." 와 같은 사용자가 먼저 할 법한 요청이나 질문 5개를 생성해주세요.
-        [현재 장소]: {category}, [키워드]: {keywords or "없음"}
-        [출력 형식] "generated_sentences" 키를 가진 JSON 객체로, 값은 문자열 배열이어야 합니다."""
+    # 대화의 가장 마지막 내용 (가장 최근)
+    last_dialogue = request.conversation[0] if request.conversation else "없음"
+    
+    prompt = f"""
+        당신은 문장 관련성 분석 전문가입니다.
+        주어진 현재 상황과 가장 직접적으로 관련이 높고, 바로 사용해도 어색하지 않은 문장을 즐겨찾기 목록에서 모두 골라주세요.
+
+        [현재 상황]
+        - 주요 키워드: {", ".join(request.keywords)}
+        - 상세 설명: {request.context or "없음"}
+        - 방금 들은 말: "{last_dialogue}"
+
+        [즐겨찾기 목록]
+        {", ".join(request.favorites)}
+
+        [출력 형식]
+        - 반드시 "relevant_favorites" 라는 키를 가진 JSON 객체여야 합니다.
+        - 값은 당신이 고른 문장들이 담긴 문자열 배열입니다. 관련 있는 문장이 없으면 빈 배열 `[]`을 반환하세요.
+    """
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={settings.GOOGLE_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0.7}}
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2}}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(api_url, json=payload, timeout=20)
+            response.raise_for_status()
+            ai_response = response.json()
+            text_content = ai_response["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(text_content).get("relevant_favorites", [])
+    except Exception:
+        return [] # 오류 발생 시 빈 리스트 반환
+
+async def generate_additional_sentences(request: RecommendationRequest, existing_sentences: List[str]) -> List[str]:
+    """이미 찾은 문장을 제외하고, 추가적인 추천 문장을 생성합니다."""
+    
+    keywords_str = ", ".join(request.keywords)
+    # === 여기가 수정된 부분입니다! (대화 순서 인지) ===
+    # conversation 배열이 최신순(First In)임을 AI에게 명확히 알려줍니다.
+    conversation_str = "\n".join([f"- {line}" for line in (request.conversation or [])])
+    favorites_str = ", ".join(request.favorites or [])
+    context_str = request.context or "없음"
+    existing_sentences_str = ", ".join(existing_sentences) if existing_sentences else "없음"
+
+    prompt = f"""
+        당신은 AAC 사용자를 위한 대화 문장 생성 AI입니다.
+        주어진 모든 정보를 종합하여, 사용자의 입장에서 다음에 할 가장 자연스러운 문장을 생성해야 합니다.
+        단, 이미 찾은 문장 목록에 있는 것과 똑같거나 매우 유사한 문장은 생성하면 안 됩니다.
+
+        ### 입력 정보 ###
+        1. **주요 키워드 (장소, 상황):** {keywords_str}
+        2. **사용자가 직접 입력한 상황:** "{context_str}"
+        3. **최근 대화 기록 (가장 최근 대화가 맨 위에 있음):**
+           {conversation_str if conversation_str else "(대화 시작 전)"}
+        4. **사용자의 즐겨찾기 문장 (평소 말투 힌트):** {favorites_str if favorites_str else "없음"}
+        5. **이미 찾은 문장 (중복 생성 금지):** {existing_sentences_str}
+
+        ### 생성 규칙 ###
+        - 총 4개의 추천 문장이 필요합니다. [이미 찾은 문장]의 개수를 제외하고, 나머지 개수만큼만 새롭게 생성해주세요.
+        - 예를 들어, 이미 찾은 문장이 1개라면 3개를, 2개라면 2개를 새로 생성하면 됩니다.
+        - 생성된 문장은 반드시 사용자의 입장에서 말하는 것이어야 합니다.
+        - 답변은 "generated_sentences" 키를 가진 JSON 객체여야 하며, 값은 생성된 문장들이 담긴 문자열 배열입니다.
+    """
+    
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={settings.GOOGLE_API_KEY}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0.8}}
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(api_url, json=payload, timeout=30)
@@ -89,55 +111,29 @@ async def generate_ai_sentences(category: str, keywords: Optional[str], previous
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
 
-# --- 4. API 엔드포인트들 ---
+# 3. API 엔드포인트
 
-@app.get("/recommendations", response_model=RecommendationResponse)
-async def get_recommendations(
-    lat: Optional[float] = Query(None), lon: Optional[float] = Query(None),
-    qr_data: Optional[str] = Query(None), keywords: Optional[str] = Query(None),
-    previous_sentence: Optional[str] = Query(None), opponent_dialogue: Optional[str] = Query(None),
-    manual_category: Optional[str] = Query(None), db: pymysql.connections.Connection = Depends(get_db)
-):
-    category = None
-    if manual_category: category = manual_category
-    elif qr_data: category = get_category_from_qr(db, qr_data)
-    elif lat is not None and lon is not None: category = await get_location_category(lat, lon)
-    if not category:
-        if previous_sentence: category = "일상 대화"
-        else: raise HTTPException(status_code=404, detail="위치 정보를 확인할 수 없습니다.")
-    generated_sentences = await generate_ai_sentences(category, keywords, previous_sentence, opponent_dialogue)
-    if not generated_sentences: raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
-    final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
-    return RecommendationResponse(category=category, recommended_sentences=final_sentences)
-
-@app.post("/speech-logs", status_code=201)
-def create_speech_log(log_request: SpeechLogRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    with db.cursor() as cursor:
-        sql = "INSERT INTO speech_logs (user_id, sentence, location) VALUES (1, %s, %s)"
-        cursor.execute(sql, (log_request.sentence, log_request.location))
-    db.commit()
-    return {"message": "Speech log created successfully."}
-
-# === 즐겨찾기 API 수정 및 추가 ===
-
-@app.get("/favorites", response_model=List[FavoriteResponse])
-def get_favorites(db: pymysql.connections.Connection = Depends(get_db)):
-    """(임시 user_id=1) 즐겨찾기 문장을 display_order 순서대로 조회합니다."""
-    with db.cursor() as cursor:
-        sql = "SELECT id, user_id, sentence, display_order FROM favorites WHERE user_id = 1 ORDER BY display_order ASC"
-        cursor.execute(sql)
-        return cursor.fetchall()
-
-@app.post("/favorites", response_model=FavoriteResponse, status_code=201)
-def add_favorite(favorite_request: FavoriteRequest, db: pymysql.connections.Connection = Depends(get_db)):
-    """새로운 문장을 즐겨찾기에 추가합니다. 가장 높은 display_order + 1 로 추가됩니다."""
-    with db.cursor() as cursor:
-        # 가장 높은 display_order 값을 찾습니다.
-        cursor.execute("SELECT MAX(display_order) as max_order FROM favorites WHERE user_id = 1")
-        max_order = cursor.fetchone()['max_order'] or 0
+@app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
+async def get_recommendations(request: RecommendationRequest):
+    """메인 백엔드로부터 전달받은 풍부한 컨텍스트로 AI 추천 문장을 생성합니다."""
+    
+    relevant_favorites = await find_relevant_favorites(request)
+    
+    # 나머지 필요한 문장들을 AI에게 추가로 생성해달라고 요청.
+    additional_sentences = []
+    if len(relevant_favorites) < 4:
+        additional_sentences = await generate_additional_sentences(request, relevant_favorites)
+    
+    # 3단계: 두 결과를 합쳐서 최종 추천 목록을 만듭니다.
+    final_sentence_texts = relevant_favorites + additional_sentences
+    
+    if not final_sentence_texts:
+        raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
         
-        sql = "INSERT INTO favorites (user_id, sentence, display_order) VALUES (1, %s, %s)"
-        cursor.execute(sql, (favorite_request.sentence, max_order + 1))
-        new_id = cursor.lastrowid
-    db.commit()
-    return FavoriteResponse(id=new_id, user_id=1, sentence=favorite_request.sentence)
+    final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(final_sentence_texts)]
+    main_category = request.keywords[0] if request.keywords else "일상"
+    
+    return RecommendationResponse(
+        category=main_category,
+        recommended_sentences=final_sentences
+    )
