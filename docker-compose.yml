@@ -6,6 +6,8 @@ services:
       - "8000:8000"
     environment:
       - TZ=Asia/Seoul
+    env_file:
+      - .env
     restart: always
     networks:
       - talky-network
