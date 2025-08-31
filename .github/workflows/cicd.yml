@@ -73,9 +73,9 @@ jobs:
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
 
             echo "[1/2] Pull latest Docker image for FastAPI service..."
-            docker-compose -f ${{ env.COMPOSE_FILE }} pull fastapi
+            docker compose -f ${{ env.COMPOSE_FILE }} pull fastapi
 
             echo "[2/2] Restart FastAPI service with new image..."
-            docker-compose -f ${{ env.COMPOSE_FILE }} up -d --no-deps --force-recreate fastapi
+            docker compose -f ${{ env.COMPOSE_FILE }} up -d --no-deps --force-recreate fastapi
             
             docker image prune -af || true
