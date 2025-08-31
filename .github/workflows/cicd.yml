@@ -69,7 +69,7 @@ jobs:
           script: |
             cd /home/${{ secrets.SERVER_USER }}/
             
-            # .env 파일에 DOCKER_USERNAME 변수 추가 (파일이 없으면 생성, 있으면 내용 추가)
+            echo "${{ secrets.ENV_FILE }}" > .env
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
 
             echo "[1/2] Pull latest Docker image for FastAPI service..."
