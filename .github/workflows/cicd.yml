@@ -15,22 +15,21 @@ permissions:
   contents: read
 
 env:
-  IMAGE: ${{ secrets.DOCKER_USERNAME }}/talky
+  IMAGE: ${{ secrets.DOCKER_USERNAME }}/talky-ai
+  COMPOSE_FILE: docker-compose.yml 
+
 
 jobs:
   docker-build-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build & Push Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -46,22 +45,37 @@ jobs:
     name: Deploy to Server
     needs: docker-build-push
     runs-on: ubuntu-latest
-
     steps:
-      - name: Deploy via SSH
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # docker-compose.yml 파일을 서버로 복사
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "${{ env.COMPOSE_FILE }}"
+          target: "/home/${{ secrets.SERVER_USER }}/"
+
+      # SSH로 접속해 docker-compose로 배포
+      - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker pull ${{ env.IMAGE }}:latest
-            docker stop talky || true
-            docker rm talky || true
-            docker run -d --name talky \
-              -p 8000:8000 \
-              -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
-              -e OPENAI_MODEL=${{ secrets.OPENAI_MODEL }} \
-              ${{ env.IMAGE }}:latest
+            cd /home/${{ secrets.SERVER_USER }}/
+            
+            # .env 파일에 DOCKER_USERNAME 변수 추가 (파일이 없으면 생성, 있으면 내용 추가)
+            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+
+            echo "[1/2] Pull latest Docker image for FastAPI service..."
+            docker-compose -f ${{ env.COMPOSE_FILE }} pull fastapi
+
+            echo "[2/2] Restart FastAPI service with new image..."
+            docker-compose -f ${{ env.COMPOSE_FILE }} up -d --no-deps --force-recreate fastapi
             
             docker image prune -af || true
