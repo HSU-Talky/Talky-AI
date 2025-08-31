@@ -1,6 +1,4 @@
-version: '3.8'
 services:
-
   fastapi:
     image: ${DOCKER_USERNAME}/talky-ai:latest
     container_name: fastapi
@@ -26,7 +24,6 @@ services:
     depends_on:
       - fastapi
 
-
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -39,8 +36,6 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - /etc/letsencrypt/live/api.13th.shop/fullchain.pem:/etc/nginx/certs/fullchain.pem
       - /etc/letsencrypt/live/api.13th.shop/privkey.pem:/etc/nginx/certs/privkey.pem
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     restart: always
     networks:
       - talky-network
