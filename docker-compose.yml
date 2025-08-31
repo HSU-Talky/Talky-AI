@@ -1,0 +1,53 @@
+version: '3.8'
+services:
+
+  fastapi:
+    image: ${DOCKER_USERNAME}/talky-ai:latest
+    container_name: fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - TZ=Asia/Seoul
+    restart: always
+    networks:
+      - talky-network
+
+  spring:
+    image: ${DOCKER_USERNAME}/talky-backend:latest
+    container_name: spring
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Seoul
+      - AI_SERVER_URL=http://fastapi:8000
+    restart: always
+    networks:
+      - talky-network
+    depends_on:
+      - fastapi
+
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - TZ=Asia/Seoul
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - /etc/letsencrypt/live/api.13th.shop/fullchain.pem:/etc/nginx/certs/fullchain.pem
+      - /etc/letsencrypt/live/api.13th.shop/privkey.pem:/etc/nginx/certs/privkey.pem
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+    networks:
+      - talky-network
+    depends_on:
+      - spring
+      - fastapi
+
+networks:
+  talky-network:
+    driver: bridge
