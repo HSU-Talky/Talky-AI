@@ -8,5 +8,8 @@ httpx
 # 설정 관리
 pydantic-settings
 
+# 폼 데이터(파일 업로드) 지원
+python-multipart 
+
 # 테스트용 앱
 streamlit
