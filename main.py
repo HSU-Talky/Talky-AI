@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field          # 요청/응답 스키마 정의
 from typing import List, Optional              # 타입 힌트: 리스트, Optional
 import httpx                                   # 비동기 HTTP 클라이언트 (LLM API 호출용)
 
+from fastapi import UploadFile, File           # 파일 업로드 처리용
+from stt import transcribe_audio               # STT 처리 함수 임포트  
+
 from config import settings                    # 환경설정/비밀키를 담은 settings 객체 임포트
 
 # FastAPI 앱 및 모델 정의
@@ -130,3 +133,14 @@ async def get_recommendations(request: RecommendationRequest):
         category=main_category,
         recommended_sentences=final_sentences
     )
+
+@app.post("/stt/transcribe", summary="음성 파일을 텍스트로 변환 (STT)")
+async def stt_transcribe(file: UploadFile = File(...)):
+    """
+    업로드된 음성 파일을 OpenAI Whisper로 텍스트 변환합니다.
+    """
+    try:
+        text = await transcribe_audio(file)
+        return {"transcription": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"STT 처리 중 오류: {e}")
