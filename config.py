@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """
     GOOGLE_API_KEY: str
     KAKAO_API_KEY: str
-
+    OPENAI_API_KEY: str  
     model_config = SettingsConfigDict(env_file=".env", extra='ignore')
     
 # 설정 객체를 생성합니다.
