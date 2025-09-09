@@ -3,9 +3,9 @@ from fastapi import FastAPI, HTTPException     # FastAPI 앱 생성, 에러 응�
 from pydantic import BaseModel, Field          # 요청/응답 스키마 정의
 from typing import List, Optional              # 타입 힌트: 리스트, Optional
 import httpx                                   # 비동기 HTTP 클라이언트 (LLM API 호출용)
+from stt import transcribe_audio               # STT 처리 함수 임포트
 
-from fastapi import UploadFile, File           # 파일 업로드 처리용
-from stt import transcribe_audio               # STT 처리 함수 임포트  
+from fastapi import UploadFile, File, Form, HTTPException           # 파일 업로드 처리용
 
 from config import settings                    # 환경설정/비밀키를 담은 settings 객체 임포트
 
@@ -43,6 +43,7 @@ class Sentence(BaseModel):                     # 내부적으로 사용하는 �
 
 class RecommendationResponse(BaseModel):       # 응답 바디 스키마 정의
     category: str                              # 메인 카테고리(첫 번째 키워드 등)
+    sttMessage : Optional[str]                 # 마지막 STT 메시지 (Optional)
     recommended_sentences: List[Sentence]      # 추천 문장 리스트
 
 # AI 로직 함수 
@@ -114,33 +115,89 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
-# --- 3. API 엔드포인트 ---
-@app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
-async def get_recommendations(request: RecommendationRequest):
-    """메인 백엔드로부터 전달받은 풍부한 컨텍스트로 AI 추천 문장을 생성합니다."""
+# 메타데이터 모델 정의
+class Metadata(BaseModel):
+    keywords: List[str] = Field(..., description="키워드 목록")
+    context: Optional[str] = Field(None, description="현재 상황 설명")
+    choose: Optional[str] = Field(None, description="사용자가 선택한 문장")
+    favorites: List[str] = Field(default_factory=list, description="즐겨찾기 문장 목록")
+    conversation: Optional[List[str]] = Field(None, description="누적 대화 이력")
 
-    # 이제 단 하나의 AI 함수만 호출하면 됩니다.
-    generated_sentences = await generate_ai_sentences(request)
 
-    if not generated_sentences:
+# 🔧 통합 턴 처리 엔드포인트 추가
+@app.post("/recommendations", response_model=RecommendationResponse, summary="통합 처리: STT→이력→추천")
+async def dialogue_turn(
+    metadata: str = Form(...),                     # JSON 문자열
+    file: UploadFile = File(None),                 # mp3 파일 (Optional)
+    sttMessage: Optional[str] = Form(None)         # 텍스트 (Optional)
+):
+    """
+    음성/텍스트 입력을 받아 STT → 대화이력 저장 → 추천 생성까지 한 번에 처리
+    """
+    try:
+        # 메타데이터 파싱
+        meta = Metadata.model_validate_json(metadata)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"metadata 파싱 실패: {e}")
+
+    # 1) STT 처리: 파일이 있으면 우선 사용, 없으면 sttMessage 사용
+    final_stt = sttMessage
+    if final_stt is None and file is not None:
+        final_stt = await transcribe_audio(file)
+
+    # 2) 대화 이력 관리 (현재는 메타데이터의 conversation 사용)
+    conversation_list = meta.conversation or []
+
+    # 3) AI 추천 생성 요청 모델 구성
+    req = RecommendationRequest(
+        keywords=meta.keywords,
+        context=meta.context,
+        conversation=conversation_list,
+        sttMessage=final_stt,
+        favorites=meta.favorites,
+    )
+
+    # 4) 기존 추천 로직 재사용
+    generated = await generate_ai_sentences(req)
+    if not generated:
         raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
 
-    final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
-
-    main_category = request.keywords[0] if request.keywords else "일상"
-
+    final_sentences = [Sentence(id=i+1, text=t) for i, t in enumerate(generated)]
+    category = meta.keywords[0] if meta.keywords else "일상"
+    
     return RecommendationResponse(
-        category=main_category,
+        category=category,
+        sttMessage=final_stt,
         recommended_sentences=final_sentences
     )
 
-@app.post("/stt/transcribe", summary="음성 파일을 텍스트로 변환 (STT)")
-async def stt_transcribe(file: UploadFile = File(...)):
-    """
-    업로드된 음성 파일을 OpenAI Whisper로 텍스트 변환합니다.
-    """
-    try:
-        text = await transcribe_audio(file)
-        return {"transcription": text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"STT 처리 중 오류: {e}")
+# # --- 3. API 엔드포인트 ---
+# @app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
+# async def get_recommendations(request: RecommendationRequest):
+#     """메인 백엔드로부터 전달받은 풍부한 컨텍스트로 AI 추천 문장을 생성합니다."""
+
+#     # 이제 단 하나의 AI 함수만 호출하면 됩니다.
+#     generated_sentences = await generate_ai_sentences(request)
+
+#     if not generated_sentences:
+#         raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
+
+#     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
+
+#     main_category = request.keywords[0] if request.keywords else "일상"
+
+#     return RecommendationResponse(
+#         category=main_category,
+#         recommended_sentences=final_sentences
+#     )
+
+# @app.post("/stt/transcribe", summary="음성 파일을 텍스트로 변환 (STT)")
+# async def stt_transcribe(file: UploadFile = File(...)):
+#     """
+#     업로드된 음성 파일을 OpenAI Whisper로 텍스트 변환합니다.
+#     """
+#     try:
+#         text = await transcribe_audio(file)
+#         return {"transcription": text}
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"STT 처리 중 오류: {e}")
