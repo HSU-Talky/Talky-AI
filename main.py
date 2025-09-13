@@ -26,7 +26,7 @@ class RecommendationRequest(BaseModel):        # 요청 바디 스키마 정의
         example="머리가 아파서 왔어요") # null 허용
     conversation: Optional[List[str]] = Field( # 선택 필드: 최근 대화 기록 (문자열 리스트)
         None, description="최근 대화 기록 (사용자, 상대방 포함)",
-        example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
+        example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."])
     sttMessage: Optional[str] = Field(
         None,
         description="상대방의 마지막 음성인식(STT) 메시지",
@@ -66,7 +66,8 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
         당신은 상대방 질문의 '유형'을 먼저 분석하고, 그 유형에 가장 적합한 답변을 생성하는 지능형 대화 문장 생성 AI입니다.
 
         - 해야할 일
-        상대방의 마지막 질문(`sttMessage`)을 분석하여, 그에 대한 가장 자연스럽고 직접적인 답변 문장 4개를 생성합니다.
+        상대방의 마지막 질문(`sttMessage`)을 분석하여, 사용자가 다음에 할 법한 말의 '선택지' 4개를 생성하는 것입니다. 
+        절대 상대방의 말에 대답하거나 챗봇처럼 행동하면 안 됩니다.
         
         - 따라야 할 생각의 흐름
         1.  **[1단계: 질문 유형 분석]**
@@ -110,7 +111,7 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
             candidates = ai_response.get("candidates", [])
             if not candidates:
                 return []
-            text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
+            text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{{}}")
             return json.loads(text_content).get("generated_sentences", [])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
