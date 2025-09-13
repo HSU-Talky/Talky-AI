@@ -11,7 +11,8 @@ async def transcribe_audio(file: UploadFile) -> str:
     files = {
         "file": (file.filename, await file.read(), file.content_type),
     }
-    data = {"model": "whisper-1"}
+    data = {"model": "whisper-1",
+            "language": "ko"}  # 한국어 설정
 
     async with httpx.AsyncClient() as client:
         response = await client.post(api_url, headers=headers, files=files, data=data)
