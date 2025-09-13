@@ -13,7 +13,7 @@ from config import settings                    # 환경설정/비밀키를 담�
 app = FastAPI(
     title="Talky-AI Service",
     description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
-    version="2025.09.02",  # AI 프롬프트 우선순위 강화 버전
+    version="2025.09.14",  # AI가 해야할 일 수정(프롬프트)
 )
 
 # /recommendations API를 위한 모델들
@@ -26,7 +26,7 @@ class RecommendationRequest(BaseModel):        # 요청 바디 스키마 정의
         example="머리가 아파서 왔어요") # null 허용
     conversation: Optional[List[str]] = Field( # 선택 필드: 최근 대화 기록 (문자열 리스트)
         None, description="최근 대화 기록 (사용자, 상대방 포함)",
-        example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."])
+        example=["안녕하세요, 어떻게 오셨어요?", "진료받으러 왔습니다."]) # null 허용
     sttMessage: Optional[str] = Field(
         None,
         description="상대방의 마지막 음성인식(STT) 메시지",
@@ -60,14 +60,14 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
 
     print(f"AI 문장 생성 요청 수신: keywords='{keywords_str}', context='{context_str}'")
 
-    # AI에게 보낼 훨씬 더 똑똑하고 상세한 지시서(프롬프트)
+    # AI에게 보낼 지시서(프롬프트)
     prompt = f"""
         - 역할 
         당신은 상대방 질문의 '유형'을 먼저 분석하고, 그 유형에 가장 적합한 답변을 생성하는 지능형 대화 문장 생성 AI입니다.
 
         - 해야할 일
-        상대방의 마지막 질문(`sttMessage`)을 분석하여, 사용자가 다음에 할 법한 말의 '선택지' 4개를 생성하는 것입니다. 
-        절대 상대방의 말에 대답하거나 챗봇처럼 행동하면 안 됩니다.
+        상대방의 마지막 질문(`sttMessage`)과 사용자가 입력한 상황('context')을 분석하여, 사용자가 다음에 할 법한 말의 '선택지' 4개를 생성하는 것입니다. 
+        절대 사용자가 입력한 상황(context)에 직접 대답하는 챗봇처럼 행동하는 것이 아닙니다.
         
         - 따라야 할 생각의 흐름
         1.  **[1단계: 질문 유형 분석]**
@@ -111,7 +111,7 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
             candidates = ai_response.get("candidates", [])
             if not candidates:
                 return []
-            text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{{}}")
+            text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
             return json.loads(text_content).get("generated_sentences", [])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
