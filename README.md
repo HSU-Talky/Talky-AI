@@ -9,7 +9,7 @@
 1.  **가상환경 생성 및 활성화:**
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate
+    source .venv/bin/activate ( win : .venv\Scripts\Activate.ps1 )
     ```
 
 2.  **필요 라이브러리 설치:**
@@ -18,7 +18,7 @@
     ```
 
 3.  **.env 파일 생성:**
-    `.env.example` 파일을 복사하여 `.env` 파일을 만들고, 각자의 API 키와 DB 정보를 입력해주세요.
+    `.env.example` 파일을 복사하여 `.env` 파일을 만들고, 각자의 API 키를 입력해주세요.
 
 4. 서버 실행:
 FastAPI 앱을 실행하려면 아래 명령어를 사용하세요.  
