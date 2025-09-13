@@ -13,7 +13,7 @@ from config import settings                    # 환경설정/비밀키를 담�
 app = FastAPI(
     title="Talky-AI Service",
     description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
-    version="2025.09.02",  # AI 프롬프트 우선순위 강화 버전
+    version="2025.09.14",  # AI가 해야할 일 수정(프롬프트)
 )
 
 # /recommendations API를 위한 모델들
@@ -60,13 +60,14 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
 
     print(f"AI 문장 생성 요청 수신: keywords='{keywords_str}', context='{context_str}'")
 
-    # AI에게 보낼 훨씬 더 똑똑하고 상세한 지시서(프롬프트)
+    # AI에게 보낼 지시서(프롬프트)
     prompt = f"""
         - 역할 
         당신은 상대방 질문의 '유형'을 먼저 분석하고, 그 유형에 가장 적합한 답변을 생성하는 지능형 대화 문장 생성 AI입니다.
 
         - 해야할 일
-        상대방의 마지막 질문(`sttMessage`)을 분석하여, 그에 대한 가장 자연스럽고 직접적인 답변 문장 4개를 생성합니다.
+        상대방의 마지막 질문(`sttMessage`)과 사용자가 입력한 상황('context')을 분석하여, 사용자가 다음에 할 법한 말의 '선택지' 4개를 생성하는 것입니다. 
+        절대 사용자가 입력한 상황(context)에 직접 대답하는 챗봇처럼 행동하는 것이 아닙니다.
         
         - 따라야 할 생각의 흐름
         1.  **[1단계: 질문 유형 분석]**
