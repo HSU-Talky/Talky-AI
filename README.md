@@ -9,7 +9,8 @@
 1.  **가상환경 생성 및 활성화:**
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate ( win : .venv\Scripts\Activate.ps1 )
+    source .venv/bin/activate
+    ( win : .venv\Scripts\Activate.ps1 )
     ```
 
 2.  **필요 라이브러리 설치:**
