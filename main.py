@@ -172,33 +172,3 @@ async def dialogue_turn(
         recommended_sentences=final_sentences
     )
 
-# # --- 3. API 엔드포인트 ---
-# @app.post("/recommendations", response_model=RecommendationResponse, summary="AI 실시간 문장 추천 (컨텍스트 기반)")
-# async def get_recommendations(request: RecommendationRequest):
-#     """메인 백엔드로부터 전달받은 풍부한 컨텍스트로 AI 추천 문장을 생성합니다."""
-
-#     # 이제 단 하나의 AI 함수만 호출하면 됩니다.
-#     generated_sentences = await generate_ai_sentences(request)
-
-#     if not generated_sentences:
-#         raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
-
-#     final_sentences = [Sentence(id=i + 1, text=text) for i, text in enumerate(generated_sentences)]
-
-#     main_category = request.keywords[0] if request.keywords else "일상"
-
-#     return RecommendationResponse(
-#         category=main_category,
-#         recommended_sentences=final_sentences
-#     )
-
-# @app.post("/stt/transcribe", summary="음성 파일을 텍스트로 변환 (STT)")
-# async def stt_transcribe(file: UploadFile = File(...)):
-#     """
-#     업로드된 음성 파일을 OpenAI Whisper로 텍스트 변환합니다.
-#     """
-#     try:
-#         text = await transcribe_audio(file)
-#         return {"transcription": text}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"STT 처리 중 오류: {e}")
