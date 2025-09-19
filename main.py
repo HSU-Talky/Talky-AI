@@ -144,7 +144,9 @@ async def dialogue_turn(
     # 1) STT 처리: 파일이 있으면 우선 사용, 없으면 sttMessage 사용
     final_stt = sttMessage
     if final_stt is None and file is not None:
+        print(f"🔍 파일 업로드 감지: {file.filename}, 크기: {file.size}")
         final_stt = await transcribe_audio(file)
+        print(f" STT 결과: {final_stt}")
 
     # 2) 대화 이력 관리 (현재는 메타데이터의 conversation 사용)
     conversation_list = meta.conversation or []
