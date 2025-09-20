@@ -71,6 +71,7 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
     retrieved_scenario = retrieve_scenario(search_query)
     
     scenario_guide = "없음. 아래 '참고 정보'만을 바탕으로 생성하세요."
+    example_dialogue_str = "없음" # 변수 초기화
     if retrieved_scenario:
         goal = retrieved_scenario.get('goal', 'N/A')
         flow = "\n".join(retrieved_scenario.get('typical_flow', []))
