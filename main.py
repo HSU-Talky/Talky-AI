@@ -4,6 +4,8 @@ from pydantic import BaseModel, Field          # 요청/응답 스키마 정의
 from typing import List, Optional              # 타입 힌트: 리스트, Optional
 import httpx                                   # 비동기 HTTP 클라이언트 (LLM API 호출용)
 from stt import transcribe_audio               # STT 처리 함수 임포트
+from rag.retriever import retrieve_scenario
+from rag.database import get_db, get_embedding_model  # 이 줄 추가
 
 from fastapi import UploadFile, File, Form, HTTPException           # 파일 업로드 처리용
 
@@ -15,6 +17,12 @@ app = FastAPI(
     description="백엔드로부터 전달받은 컨텍스트를 기반으로 문장을 생성하는 AI 서비스",
     version="2025.09.14",  # AI가 해야할 일 수정(프롬프트)
 )
+
+@app.on_event("startup")
+async def startup_event():
+    get_db()
+    get_embedding_model()  # 이제 정상 작동
+    print("RAG 데이터베이스와 임베딩 모델이 준비되었습니다.")
 
 # /recommendations API를 위한 모델들
 class RecommendationRequest(BaseModel):        # 요청 바디 스키마 정의
@@ -49,7 +57,7 @@ class RecommendationResponse(BaseModel):       # 응답 바디 스키마 정의
 # AI 로직 함수 
 async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
     """
-    모든 컨텍스트를 한 번에 처리하여, 즐겨찾기를 우선적으로 고려한 최종 추천 문장을 생성합니다.
+    [RAG] 적용 , 모든 컨텍스트를 한 번에 처리하여, 즐겨찾기를 우선적으로 고려한 최종 추천 문장을 생성합니다.
     """
     # 프롬프트에 전달할 정보들을 안전하게 문자열로 변환
     keywords_str = ", ".join(request.keywords) if request.keywords else "없음"
@@ -58,7 +66,23 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
     conversation_str = "\n".join([f"- {line}" for line in request.conversation]) if request.conversation else "(대화 시작 전)"
     favorites_str = "\n".join([f"- {fav}" for fav in request.favorites]) if request.favorites else "없음"
 
+    # RAG 검색: 키워드와 상황을 조합해서 시나리오 검색
+    search_query = f"{keywords_str} {context_str}".strip()
+    retrieved_scenario = retrieve_scenario(search_query)
+    
+    scenario_guide = "없음. 아래 '참고 정보'만을 바탕으로 생성하세요."
+    if retrieved_scenario:
+        goal = retrieved_scenario.get('goal', 'N/A')
+        flow = "\n".join(retrieved_scenario.get('typical_flow', []))
+        scenario_guide = f"""- 시나리오 목표: {goal}
+        - 이상적인 대화 흐름:
+        {flow}"""
+        if retrieved_scenario.get("example_dialogue"):
+            dialogue_lines = [f"- {d['speaker']}: {d['line']}" for d in retrieved_scenario["example_dialogue"]]
+            example_dialogue_str = "\n".join(dialogue_lines)
+
     print(f"AI 문장 생성 요청 수신: keywords='{keywords_str}', context='{context_str}'")
+    print(f"RAG 검색 결과: {'시나리오 발견' if retrieved_scenario else '시나리오 없음'}")
 
     # AI에게 보낼 지시서(프롬프트)
     prompt = f"""
@@ -81,6 +105,13 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
         3.  **[3단계: 최종 문장 생성]**
             - 먼저, `사용자의 평소 말투 (즐겨찾기)` 목록을 확인한다. 만약 현재 질문에 대한 완벽한 답변이 즐겨찾기에 있다면, 그 문장을 최종 추천 목록에 최우선으로 포함시킨다.
             - 나머지 비어있는 자리(총 4개 중)는 위 2단계 전략과 `참고 정보`를 활용하여 가장 적절하고 다양한 새 문장을 생성하여 채워넣는다.
+            - **모든 문장은 존댓말로 생성하세요.**
+
+
+        ### 시나리오 가이드 ###
+        {scenario_guide}
+        ### 예시 대화 ###
+        {example_dialogue_str}
 
 
        ### 참고 정보 ###
