@@ -13,3 +13,7 @@ python-multipart
 
 # 테스트용 앱
 streamlit
+
+chromadb
+google-generativeai
+sentence-transformers # 임베딩 모델용

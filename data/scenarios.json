@@ -1,0 +1,663 @@
+[
+    {
+      "scenario_id": "HOSPITAL-REGISTER-NEW",
+      "category": "병원",
+      "task": "초진 환자 접수",
+      "embedding_text": "병원을 처음 방문해서 진료를 접수하고 싶을 때. 데스크에 가서 처음 왔다고 말하고 신상 정보를 확인하는 상황.",
+      "content": {
+        "goal": "의사에게 성공적으로 진료를 접수하는 것",
+        "typical_flow": [
+          "1. 목적 말하기: '진료받으러 왔어요.'",
+          "2. 상황 설명: '처음 방문했습니다.'",
+          "3. 개인정보 제공: '신분증 여기 있습니다.'",
+          "4. 질문에 답변하기: '네, 맞습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "진료받으러 왔어요." },
+          { "speaker": "staff", "line": "네, 처음 오셨나요?" },
+          { "speaker": "user", "line": "네, 처음 방문했습니다." },
+          { "speaker": "staff", "line": "신분증 좀 주시겠어요?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "HOSPITAL-DESCRIBE-SYMPTOM",
+      "category": "병원",
+      "task": "의사에게 증상 설명하기",
+      "embedding_text": "진료실에 들어가 의사에게 어디가 어떻게 아픈지 구체적으로 설명해야 하는 상황. 통증의 종류, 시작 시점 등을 전달한다.",
+      "content": {
+        "goal": "나의 아픈 상태를 의사에게 정확하게 전달하는 것",
+        "typical_flow": [
+          "1. 핵심 부위 말하기: '머리가 아파요.'",
+          "2. 시작 시점 말하기: '어제 저녁부터 아팠어요.'",
+          "3. 통증 묘사하기: '계속 욱신거려요.'",
+          "4. 동반 증상 말하기: '열도 나고 어지러워요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "doctor", "line": "어디가 불편해서 오셨어요?" },
+          { "speaker": "user", "line": "머리가 너무 아파요." },
+          { "speaker": "doctor", "line": "언제부터 아프셨어요?" },
+          { "speaker": "user", "line": "어제 저녁부터요. 계속 욱신거려요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "HOSPITAL-PAYMENT-PRESCRIPTION",
+      "category": "병원",
+      "task": "진료 후 수납 및 처방전 문의",
+      "embedding_text": "진료가 끝난 후, 수납 데스크에서 비용을 계산하고 처방전이나 다음 예약에 대해 문의하는 상황.",
+      "content": {
+        "goal": "진료비 결제를 완료하고 처방전을 받아 약국 위치를 확인하는 것",
+        "typical_flow": [
+          "1. 수납 의사 밝히기: '계산해주세요.'",
+          "2. 결제 수단 제공: '카드로 할게요.'",
+          "3. 처방전 문의: '처방전 주세요.'",
+          "4. 약국 위치 질문: '약국은 어디에 있어요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "계산해주세요." },
+          { "speaker": "staff", "line": "네, 처방전 나왔습니다. 아래층 약국으로 가시면 됩니다." },
+          { "speaker": "user", "line": "네, 감사합니다. 카드로 할게요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "HOSPITAL-MAKE-RESERVATION",
+      "category": "병원",
+      "task": "진료 예약하기",
+      "embedding_text": "전화나 방문을 통해 특정 날짜와 시간에 의사 진료를 미리 예약하고 싶을 때. 원하는 의사나 진료 과목을 말하는 상황.",
+      "content": {
+        "goal": "원하는 날짜에 성공적으로 진료 예약을 잡는 것",
+        "typical_flow": [
+          "1. 예약 의사 표현: '진료 예약하고 싶어요.'",
+          "2. 원하는 진료 과목/의사 말하기: '정형외과 진료요.'",
+          "3. 가능한 날짜와 시간 말하기: '내일 오전 괜찮아요?'",
+          "4. 예약자 정보 남기기: '네, 제 이름은 OOO입니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "진료 예약하고 싶어요." },
+          { "speaker": "staff", "line": "네, 어떤 진료 원하세요?" },
+          { "speaker": "user", "line": "정형외과요. 내일 오전 괜찮을까요?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "HOSPITAL-ASK-RESULTS",
+      "category": "병원",
+      "task": "검사 결과 문의하기",
+      "embedding_text": "이전에 받았던 피검사나 엑스레이 같은 검사의 결과가 나왔는지 확인하고, 결과에 대해 설명을 듣고 싶을 때.",
+      "content": {
+        "goal": "나의 검사 결과를 확인하고 의사의 소견을 듣는 것",
+        "typical_flow": [
+          "1. 방문 목적 말하기: '검사 결과 보러 왔어요.'",
+          "2. 어떤 검사인지 말하기: '지난주에 찍은 엑스레이요.'",
+          "3. 결과에 대해 질문하기: '결과가 어떻게 나왔어요?'",
+          "4. 상태 확인: '괜찮은 건가요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저번에 했던 피검사 결과 보러 왔는데요." },
+          { "speaker": "doctor", "line": "네, OOO님. 결과 나왔습니다. 전반적으로 괜찮으세요." },
+          { "speaker": "user", "line": "아, 다행이네요. 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RESTAURANT-ORDER-BASIC",
+      "category": "식당",
+      "task": "기본 메뉴 주문",
+      "embedding_text": "식당에서 자리에 앉아 직원을 부르고, 메뉴판을 가리키며 가장 기본적인 메뉴를 주문하는 상황.",
+      "content": {
+        "goal": "원하는 음식을 성공적으로 주문하는 것",
+        "typical_flow": [
+          "1. 직원 호출: '저기요.' 또는 '주문할게요.'",
+          "2. 메뉴 선택: '(메뉴판을 가리키며) 이거 하나 주세요.'",
+          "3. 수량 확인: '네, 한 개요.'",
+          "4. 추가 요청: '그리고 물 좀 주세요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 주문할게요." },
+          { "speaker": "staff", "line": "네, 뭐로 하시겠어요?" },
+          { "speaker": "user", "line": "이거 하나 주세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RESTAURANT-REQUEST-EXTRA",
+      "category": "식당",
+      "task": "식사 중 추가 요청",
+      "embedding_text": "음식을 먹는 도중에 반찬이나 소스, 앞접시 등이 더 필요해서 직원에게 추가로 요청하는 상황.",
+      "content": {
+        "goal": "식사에 필요한 물품을 추가로 받는 것",
+        "typical_flow": [
+          "1. 직원 호출: '저기요.'",
+          "2. 필요한 것 요청: '반찬 좀 더 주세요.'",
+          "3. 감사 표현: '감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 여기 반찬 좀 더 주실 수 있어요?" },
+          { "speaker": "staff", "line": "네, 그럼요. 바로 가져다 드릴게요." },
+          { "speaker": "user", "line": "감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RESTAURANT-PAYMENT",
+      "category": "식당",
+      "task": "계산하기",
+      "embedding_text": "식사를 마친 후 계산대로 가서 결제를 요청하고, 포장이나 영수증 발급을 문의하는 상황.",
+      "content": {
+        "goal": "음식 값을 지불하고 식당을 나오는 것",
+        "typical_flow": [
+          "1. 계산 의사 표현: '계산해주세요.'",
+          "2. 결제 수단 제시: '카드로 할게요.'",
+          "3. 포장 요청 (선택): '남은 음식 포장될까요?'",
+          "4. 영수증 요청 (선택): '영수증 주세요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "계산해주세요." },
+          { "speaker": "staff", "line": "네, 총 25,000원입니다." },
+          { "speaker": "user", "line": "카드로 할게요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RESTAURANT-MAKE-RESERVATION",
+      "category": "식당",
+      "task": "전화로 예약하기",
+      "embedding_text": "식당에 가기 전에 미리 전화해서 특정 날짜와 시간에 몇 명이 방문할지 예약하는 상황.",
+      "content": {
+        "goal": "원하는 시간에 식당 좌석을 확보하는 것",
+        "typical_flow": [
+          "1. 통화 목적 말하기: '예약하려고 전화했어요.'",
+          "2. 날짜와 시간 말하기: '오늘 저녁 7시요.'",
+          "3. 인원수 말하기: '두 명이에요.'",
+          "4. 예약자 정보 남기기: '이름은 OOO입니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "staff", "line": "네, OOO식당입니다." },
+          { "speaker": "user", "line": "안녕하세요, 예약하려고요." },
+          { "speaker": "staff", "line": "몇 시에 몇 분이세요?" },
+          { "speaker": "user", "line": "오늘 저녁 7시에 두 명이요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "RESTAURANT-COMPLAIN-FOOD",
+      "category": "식당",
+      "task": "음식 문제에 대해 말하기",
+      "embedding_text": "주문한 음식이 잘못 나왔거나, 음식에서 이물질을 발견했을 때 직원에게 이 사실을 알리고 해결을 요청하는 상황.",
+      "content": {
+        "goal": "음식 문제를 해결하거나 교환받는 것",
+        "typical_flow": [
+          "1. 직원 호출: '저기요, 잠시만요.'",
+          "2. 문제점 지적: '음식에서 머리카락 나왔어요.'",
+          "3. 원하는 조치 요구: '다시 만들어 주세요.'",
+          "4. 사과 수용: '네, 알겠습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 음식에서 머리카락이 나왔어요." },
+          { "speaker": "staff", "line": "어머, 정말 죄송합니다. 바로 다시 해드릴까요?" },
+          { "speaker": "user", "line": "네, 다시 만들어 주세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "SCHOOL-GREETING",
+      "category": "학교",
+      "task": "교수님 및 친구와 인사하기",
+      "embedding_text": "학교 복도나 강의실에서 교수님이나 친구를 마주쳤을 때 간단하게 안부를 묻고 인사하는 상황.",
+      "content": {
+        "goal": "주변 사람들과 긍정적인 관계를 유지하는 것",
+        "typical_flow": [
+          "1. 인사하기: '안녕하세요, 교수님.'",
+          "2. 안부 묻기: '잘 지내세요?'",
+          "3. 긍정적 답변: '네, 좋습니다.'",
+          "4. 헤어질 때 인사: '다음에 뵙겠습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "안녕하세요, 교수님." },
+          { "speaker": "professor", "line": "어, 그래. 잘 지내지?" },
+          { "speaker": "user", "line": "네, 잘 지내고 있습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "SCHOOL-ASK-QUESTION",
+      "category": "학교",
+      "task": "수업 중 질문하기",
+      "embedding_text": "강의를 듣다가 이해가 되지 않는 부분이 있어 손을 들고 교수님께 질문하거나 설명을 다시 요청하는 상황.",
+      "content": {
+        "goal": "수업 내용에 대한 궁금증을 해결하는 것",
+        "typical_flow": [
+          "1. 주의 끌기: '저, 질문 있습니다.'",
+          "2. 이해 못한 부분 표현: '잘 모르겠습니다.'",
+          "3. 재설명 요청: '다시 한번 설명해주세요.'",
+          "4. 감사 표현: '네, 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "교수님, 질문 있습니다." },
+          { "speaker": "professor", "line": "네, 말해보세요." },
+          { "speaker": "user", "line": "방금 설명해주신 부분, 다시 한번만 말씀해주실 수 있나요?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "SCHOOL-USE-LIBRARY",
+      "category": "학교",
+      "task": "도서관 이용",
+      "embedding_text": "도서관에서 책을 빌리거나, 열람실 좌석을 이용하거나, 프린터를 사용하고 싶을 때 사서에게 문의하는 상황.",
+      "content": {
+        "goal": "도서관의 자원(책, 좌석, 프린터)을 이용하는 것",
+        "typical_flow": [
+          "1. 대출 요청: '이 책 빌려주세요.'",
+          "2. 반납 문의: '책 반납은 어디서 해요?'",
+          "3. 프린터 문의: '프린터 어떻게 사용해요?'",
+          "4. 감사 표현: '감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "이 책 대출하고 싶어요." },
+          { "speaker": "librarian", "line": "네, 학생증 보여주세요." },
+          { "speaker": "user", "line": "여기 있습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "SCHOOL-FIND-LOCATION",
+      "category": "학교",
+      "task": "강의실 또는 건물 찾기",
+      "embedding_text": "처음 가보는 강의실이나 건물의 위치를 몰라서 지나가는 다른 학생에게 길을 물어보는 상황.",
+      "content": {
+        "goal": "목적지인 강의실이나 건물을 성공적으로 찾는 것",
+        "typical_flow": [
+          "1. 말 걸기: '저기요, 죄송한데요.'",
+          "2. 목적지 질문: '공학관 어디로 가야 해요?'",
+          "3. 강의실 번호 질문: '301호 강의실은 몇 층이에요?'",
+          "4. 감사 표현: '아, 네. 고맙습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 공학관이 어디에요?" },
+          { "speaker": "student", "line": "아, 저쪽으로 쭉 가시면 나와요." },
+          { "speaker": "user", "line": "고맙습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "MART-FIND-ITEM",
+      "category": "마트",
+      "task": "물건 위치 찾기",
+      "embedding_text": "마트에서 원하는 물건을 찾지 못해 지나가는 직원에게 해당 물건이 어디에 있는지 물어보는 상황.",
+      "content": {
+        "goal": "원하는 물건이 있는 코너를 찾는 것",
+        "typical_flow": [
+          "1. 직원에게 말 걸기: '저기요, 잠시만요.'",
+          "2. 찾는 물건 말하기: '우유 어디에 있어요?'",
+          "3. 감사 표현: '네, 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 우유 어디에 있어요?" },
+          { "speaker": "staff", "line": "우유는 저쪽 3번 코너에 있습니다." },
+          { "speaker": "user", "line": "네, 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "MART-CHECKOUT",
+      "category": "마트",
+      "task": "계산대에서 결제하기",
+      "embedding_text": "물건을 다 고른 후 계산대에서 줄을 서고, 직원에게 포인트 적립, 봉투 구매, 결제를 요청하는 상황.",
+      "content": {
+        "goal": "고른 물건을 문제없이 결제하고 마트를 나서는 것",
+        "typical_flow": [
+          "1. 계산 시작: '계산해주세요.'",
+          "2. 포인트 적립 요청 (선택): '포인트 적립해주세요.'",
+          "3. 봉투 구매 요청 (선택): '봉투 하나 주세요.'",
+          "4. 결제하기: '카드로 할게요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "cashier", "line": "안녕하세요." },
+          { "speaker": "user", "line": "계산해주세요. 봉투 하나 필요해요." },
+          { "speaker": "cashier", "line": "네, 포인트 카드 있으세요?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "MART-REFUND-EXCHANGE",
+      "category": "마트",
+      "task": "환불 또는 교환 요청",
+      "embedding_text": "구매한 물건에 문제가 있거나 마음이 바뀌어서 고객센터에 영수증과 함께 방문하여 환불이나 교환을 요청하는 상황.",
+      "content": {
+        "goal": "구매한 상품을 환불받거나 다른 상품으로 교환하는 것",
+        "typical_flow": [
+          "1. 업무 요청: '이거 환불하고 싶어요.'",
+          "2. 영수증 및 상품 제시: '여기 영수증이랑 물건이요.'",
+          "3. 사유 설명 (선택): '사이즈가 안 맞아요.'",
+          "4. 확인 및 감사: '네, 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "이거 환불하고 싶은데요." },
+          { "speaker": "staff", "line": "네, 영수증이랑 물건 보여주시겠어요?" },
+          { "speaker": "user", "line": "네, 여기요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "MART-ASK-PRICE",
+      "category": "마트",
+      "task": "가격 문의하기",
+      "embedding_text": "상품에 가격표가 붙어있지 않아서 직원에게 이 상품의 가격이 얼마인지 물어보는 상황.",
+      "content": {
+        "goal": "상품의 정확한 가격을 확인하는 것",
+        "typical_flow": [
+          "1. 직원 호출: '저기요.'",
+          "2. 가격 질문: '이거 얼마에요?'",
+          "3. 결정 표현: '알겠습니다. 살게요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 이거 가격이 안 붙어있는데 얼마에요?" },
+          { "speaker": "staff", "line": "잠시만요, 확인해 드릴게요. ... 5천 원입니다." },
+          { "speaker": "user", "line": "네, 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "TRANSPORT-BUS-RIDE",
+      "category": "교통",
+      "task": "버스 승하차",
+      "embedding_text": "버스 정류장에서 버스를 타고, 목적지에 도착했을 때 하차 벨을 누르고 내리는 일상적인 상황.",
+      "content": {
+        "goal": "버스를 이용하여 원하는 목적지까지 이동하는 것",
+        "typical_flow": [
+          "1. 버스 기사에게 인사: '(타면서) 안녕하세요.'",
+          "2. 목적지 확인 요청 (선택): '이 버스 OO 가나요?'",
+          "3. 하차 벨 누르기",
+          "4. 버스 기사에게 감사 인사: '(내리면서) 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "(버스를 타며 교통카드를 찍는다)" },
+          { "speaker": "user", "line": "(목적지 도착 전 하차 벨을 누른다)" },
+          { "speaker": "user", "line": "(내리면서) 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "TRANSPORT-TAXI-DESTINATION",
+      "category": "교통",
+      "task": "택시타고 목적지 말하기",
+      "embedding_text": "길에서 택시를 잡고 탑승한 뒤, 기사님에게 가고 싶은 장소의 주소나 건물 이름을 말하는 상황.",
+      "content": {
+        "goal": "택시 기사에게 목적지를 정확히 전달하는 것",
+        "typical_flow": [
+          "1. 탑승 후 인사: '안녕하세요.'",
+          "2. 목적지 전달: 'OO병원으로 가주세요.'",
+          "3. 세부 경로 안내 (선택): '저 앞에서 세워주세요.'",
+          "4. 결제 요청: '여기서 계산해주세요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "안녕하세요, 서울병원으로 가주세요." },
+          { "speaker": "driver", "line": "네, 알겠습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "TRANSPORT-SUBWAY-TICKET",
+      "category": "교통",
+      "task": "지하철 표 구매 또는 충전",
+      "embedding_text": "지하철역 무인 발권기에서 1회용 교통카드를 사거나, 기존 교통카드의 잔액을 충전하는 상황. 도움이 필요할 수도 있다.",
+      "content": {
+        "goal": "지하철을 이용하기 위한 표를 사거나 카드를 충전하는 것",
+        "typical_flow": [
+          "1. (도움 요청 시) 직원 호출: '저기요.'",
+          "2. 원하는 업무 말하기: '카드 충전하고 싶어요.'",
+          "3. 금액 선택 및 투입: '만원이요.'",
+          "4. 완료 확인: '네, 됐어요. 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 카드 충전 좀 도와주세요." },
+          { "speaker": "staff", "line": "네, 이쪽에 카드 올려놓으시고 금액 선택하시면 됩니다." },
+          { "speaker": "user", "line": "아, 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "TRANSPORT-ASK-DIRECTIONS",
+      "category": "교통",
+      "task": "환승 또는 출구 방향 묻기",
+      "embedding_text": "복잡한 지하철역 안에서 다른 노선으로 환승하는 통로나 특정 번호의 출구를 찾지 못해 역무원이나 다른 승객에게 물어보는 상황.",
+      "content": {
+        "goal": "역 안에서 정확한 방향을 찾아 이동하는 것",
+        "typical_flow": [
+          "1. 정중하게 말 걸기: '실례합니다.'",
+          "2. 환승 노선 질문: '2호선 타려면 어디로 가요?'",
+          "3. 출구 번호 질문: '3번 출구는 어디에요?'",
+          "4. 감사 표현: '고맙습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "실례합니다, 3번 출구는 어디로 가야해요?" },
+          { "speaker": "stranger", "line": "저쪽 계단으로 올라가시면 돼요." },
+          { "speaker": "user", "line": "고맙습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "BANK-WITHDRAW-MONEY",
+      "category": "은행",
+      "task": "창구에서 현금 인출",
+      "embedding_text": "은행 창구 직원에게 신분증과 통장을 제시하고 원하는 금액의 현금을 인출하고 싶다고 요청하는 상황.",
+      "content": {
+        "goal": "은행 창구에서 안전하게 현금을 찾는 것",
+        "typical_flow": [
+          "1. 업무 요청: '돈 찾으러 왔어요.'",
+          "2. 금액 제시: '10만 원이요.'",
+          "3. 필요 서류 제출: '신분증 여기요.'",
+          "4. 감사 표현: '감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "출금해주세요." },
+          { "speaker": "staff", "line": "네, 얼마를 찾으시겠어요?" },
+          { "speaker": "user", "line": "10만 원이요." },
+          { "speaker": "staff", "line": "신분증 주시겠어요?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "BANK-ATM-USE",
+      "category": "은행",
+      "task": "ATM 기기 사용 도움 요청",
+      "embedding_text": "ATM 기기 조작에 어려움을 겪어 주변에 있는 은행 직원이나 다른 사람에게 도움을 요청하는 상황.",
+      "content": {
+        "goal": "다른 사람의 도움을 받아 ATM 업무를 완료하는 것",
+        "typical_flow": [
+          "1. 도움 요청: '저기요, 잠시만요.'",
+          "2. 문제 상황 설명: '이거 어떻게 해요?'",
+          "3. 원하는 업무 말하기: '입금하고 싶어요.'",
+          "4. 감사 표현: '정말 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 입금 어떻게 하는지 알려주세요." },
+          { "speaker": "staff", "line": "네, 통장이나 카드 먼저 넣어주세요." },
+          { "speaker": "user", "line": "네, 감사합니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "BANK-OPEN-ACCOUNT",
+      "category": "은행",
+      "task": "계좌 개설하기",
+      "embedding_text": "은행에 방문하여 새로운 통장을 만들고 싶다고 말하고, 필요한 서류를 작성하며 계좌를 개설하는 상황.",
+      "content": {
+        "goal": "새로운 은행 계좌를 성공적으로 만드는 것",
+        "typical_flow": [
+          "1. 방문 목적 말하기: '통장 만들러 왔어요.'",
+          "2. 필요한 서류 제출: '신분증 여기 있습니다.'",
+          "3. 서류 작성하기: '(직원 도움 받아) 여기에 쓰면 돼요?'",
+          "4. 완료 확인 및 감사: '네, 감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "통장 만들고 싶어요." },
+          { "speaker": "staff", "line": "네, 신규 발급이신가요? 신분증 먼저 주시겠어요?" },
+          { "speaker": "user", "line": "네, 여기요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "BANK-REPORT-LOST-CARD",
+      "category": "은행",
+      "task": "카드 분실 신고",
+      "embedding_text": "체크카드나 신용카드를 잃어버려서 은행에 방문하거나 전화하여 즉시 분실 신고를 하고 정지시키는 상황.",
+      "content": {
+        "goal": "분실한 카드를 다른 사람이 사용하지 못하도록 정지시키는 것",
+        "typical_flow": [
+          "1. 다급한 상황 알리기: '카드 잃어버렸어요.'",
+          "2. 업무 요청: '분실 신고 해주세요.'",
+          "3. 개인정보 확인: '네, 맞아요. OOO입니다.'",
+          "4. 재발급 문의: '다시 만들려면 어떻게 해요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "카드를 잃어버렸어요! 분실 신고 좀 해주세요." },
+          { "speaker": "staff", "line": "네, 진정하시고 성함과 생년월일 말씀해주시겠어요?" },
+          { "speaker": "user", "line": "네, OOO이고, 90년 1월 1일생입니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "PHARMACY-BUY-MEDICINE",
+      "category": "약국",
+      "task": "처방전 약 구매 및 일반의약품 문의",
+      "embedding_text": "병원에서 받은 처방전을 약사에게 제출하여 약을 사거나, 아픈 증상을 말하고 그에 맞는 일반의약품을 추천받는 상황.",
+      "content": {
+        "goal": "필요한 약을 구매하고 복용법에 대한 설명을 듣는 것",
+        "typical_flow": [
+          "1. 처방전 제출: '약 지으러 왔어요.'",
+          "2. 증상 설명 (일반약): '머리가 아픈데, 무슨 약 먹어야 해요?'",
+          "3. 복용법 질문: '이거 어떻게 먹어요?'",
+          "4. 결제 및 감사: '감사합니다. 얼마에요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "약 지으러 왔어요." },
+          { "speaker": "pharmacist", "line": "네, 처방전 이리 주세요." },
+          { "speaker": "user", "line": "(처방전을 건네며)" },
+          { "speaker": "pharmacist", "line": "이 약은 하루 세 번, 식사 후에 드세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "PHARMACY-BAND-AID",
+      "category": "약국",
+      "task": "상처 용품 구매",
+      "embedding_text": "다치거나 상처가 났을 때 약국에 가서 소독약, 연고, 반창고(밴드) 등을 구매하는 상황.",
+      "content": {
+        "goal": "상처를 치료하는 데 필요한 물품을 구매하는 것",
+        "typical_flow": [
+          "1. 필요한 물품 말하기: '밴드 주세요.'",
+          "2. 종류 선택 (필요시): '큰 걸로 주세요.'",
+          "3. 사용법 문의: '이거 어떻게 발라요?'",
+          "4. 결제: '카드로 할게요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "소독약이랑 밴드 좀 주세요." },
+          { "speaker": "pharmacist", "line": "네, 어떤 걸로 드릴까요?" },
+          { "speaker": "user", "line": "상처에 바를 거예요. 좋은 걸로 주세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "PHARMACY-VITAMINS",
+      "category": "약국",
+      "task": "영양제 문의",
+      "embedding_text": "피로하거나 건강 관리를 위해 약사에게 비타민이나 다른 영양제를 추천해달라고 요청하는 상황.",
+      "content": {
+        "goal": "나에게 맞는 영양제를 추천받아 구매하는 것",
+        "typical_flow": [
+          "1. 방문 목적 말하기: '영양제 사러 왔어요.'",
+          "2. 상태 설명: '요즘 너무 피곤해요.'",
+          "3. 추천 요청: '좋은 비타민 있어요?'",
+          "4. 가격 질문 및 구매: '그걸로 주세요. 얼마에요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "요즘 너무 피곤한데, 좋은 영양제 있을까요?" },
+          { "speaker": "pharmacist", "line": "피로회복에는 비타민B군이 좋습니다. 이걸로 한번 드셔보세요." },
+          { "speaker": "user", "line": "네, 그걸로 주세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "ETC-GREETING-BASIC",
+      "category": "기타",
+      "task": "기본적인 사회적 인사",
+      "embedding_text": "엘리베이터나 길에서 아는 사람을 마주쳤을 때 나누는 가벼운 인사나 날씨 이야기 등의 일상적인 대화.",
+      "content": {
+        "goal": "마주친 사람과 어색하지 않게 짧은 대화를 나누는 것",
+        "typical_flow": [
+          "1. 먼저 인사하기: '안녕하세요.'",
+          "2. 간단한 질문: '어디 가세요?'",
+          "3. 긍정적 대답: '네, 좋아요.'",
+          "4. 헤어질 때 인사: '좋은 하루 보내세요.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "안녕하세요." },
+          { "speaker": "neighbor", "line": "아, 안녕하세요. 좋은 아침입니다." },
+          { "speaker": "user", "line": "네, 좋은 하루 보내세요." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "ETC-ASK-FOR-HELP",
+      "category": "기타",
+      "task": "낯선 사람에게 도움 요청하기",
+      "embedding_text": "길을 잃었거나, 물건을 떨어뜨렸거나, 문을 열기 힘들 때 등 곤란한 상황에서 주변 사람에게 도움을 구하는 상황.",
+      "content": {
+        "goal": "다른 사람의 도움을 통해 당면한 문제를 해결하는 것",
+        "typical_flow": [
+          "1. 정중하게 부르기: '저기요, 죄송한데요.'",
+          "2. 도움 요청: '잠깐만 도와주실 수 있어요?'",
+          "3. 원하는 것 말하기: '이것 좀 주워주세요.'",
+          "4. 감사 표현: '정말 고맙습니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "저기요, 죄송한데 이것 좀 주워주실 수 있어요?" },
+          { "speaker": "stranger", "line": "네, 여기요." },
+          { "speaker": "user", "line": "정말 고맙습니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "ETC-PHONE-CALL",
+      "category": "기타",
+      "task": "가족에게 전화 걸기",
+      "embedding_text": "휴대폰을 사용하여 저장된 가족이나 친구에게 전화를 걸어 안부를 묻거나 용건을 말하는 상황.",
+      "content": {
+        "goal": "전화를 통해 다른 사람과 소통하는 것",
+        "typical_flow": [
+          "1. 통화 시작: '여보세요?'",
+          "2. 상대방 확인: '나야. 잘 지내?'",
+          "3. 용건 말하기: '지금 어디야?'",
+          "4. 통화 종료: '응, 끊을게.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "여보세요?" },
+          { "speaker": "family", "line": "어, 왜 전화했어?" },
+          { "speaker": "user", "line": "아니 그냥. 밥은 먹었어?" }
+        ]
+      }
+    },
+    {
+      "scenario_id": "ETC-EXPRESS-EMOTION",
+      "category": "기타",
+      "task": "감정 표현하기",
+      "embedding_text": "가족이나 친구에게 자신의 현재 기분(기쁨, 슬픔, 화남 등)을 표현하고 싶을 때 사용하는 기본적인 문장.",
+      "content": {
+        "goal": "나의 감정 상태를 다른 사람에게 알리는 것",
+        "typical_flow": [
+          "1. 긍정적 감정: '기분 좋아요.'",
+          "2. 부정적 감정: '슬퍼요.'",
+          "3. 신체적 느낌: '피곤해요.'",
+          "4. 상대방에게 공감 요청: '내 마음 알겠어?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "friend", "line": "무슨 일 있어? 표정이 안 좋아 보여." },
+          { "speaker": "user", "line": "나 너무 슬퍼." },
+          { "speaker": "friend", "line": "왜 그래, 무슨 일인데?" }
+        ]
+      }
+    }
+  ]
