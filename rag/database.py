@@ -29,15 +29,24 @@ def get_db():
         _scenario_collection = _db_client.get_or_create_collection(name=COLLECTION_NAME)
     return _scenario_collection
 
-def build_database():
+def build_database(force_rebuild=False):
     """
     scenarios.json 파일을 읽어 ChromaDB에 벡터 데이터베이스를 구축하는 함수.
     최초 1회 또는 데이터 업데이트 시 실행합니다.
     """
     collection = get_db()
     
+    # 강제 재구축 옵션
+    if force_rebuild:
+        print("기존 데이터를 삭제하고 재구축합니다...")
+        try:
+            collection.delete_collection()
+            collection = get_db()
+        except:
+            print("컬렉션 삭제 실패, 계속 진행합니다...")
+    
     # DB에 이미 데이터가 있으면 중복 구축 방지
-    if collection.count() > 0:
+    if collection.count() > 0 and not force_rebuild:
         print(f"이미 {collection.count()}개의 데이터가 존재합니다. 구축을 건너뜁니다.")
         return
 

@@ -659,5 +659,89 @@
           { "speaker": "friend", "line": "왜 그래, 무슨 일인데?" }
         ]
       }
+    },
+    {
+      "scenario_id": "UNIVERSITY-FIND-CAMPUS",
+      "category": "학교",
+      "task": "한성대학교 캠퍼스 찾기",
+      "embedding_text": "한성대학교에 가야 하는데 캠퍼스 위치를 모르겠어서 길을 물어보는 상황. 지하철역이나 버스정류장에서 한성대학교까지 가는 방법을 문의한다.",
+      "content": {
+        "goal": "한성대학교 캠퍼스까지 가는 방법을 찾는 것",
+        "typical_flow": [
+          "1. 목적지 말하기: '한성대학교 가는 방법을 모르겠어요.'",
+          "2. 교통편 문의: '지하철로 갈 수 있어요?'",
+          "3. 구체적 질문: '몇 번 지하철 타야 해요?'",
+          "4. 확인: '한성대입구역에서 내리면 되나요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "한성대학교 가는 방법을 모르겠어요." },
+          { "speaker": "stranger", "line": "한성대입구역에서 내리시면 됩니다." },
+          { "speaker": "user", "line": "몇 번 지하철 타야 해요?" },
+          { "speaker": "stranger", "line": "4호선 타시면 됩니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "UNIVERSITY-ASK-DIRECTIONS",
+      "category": "학교",
+      "task": "대학교 길 찾기",
+      "embedding_text": "대학교에 가야 하는데 길을 모르겠어서 주변 사람에게 길을 물어보는 상황. 대학교까지 가는 교통편이나 도보 경로를 문의한다.",
+      "content": {
+        "goal": "대학교까지 가는 교통편을 찾는 것",
+        "typical_flow": [
+          "1. 목적지 말하기: '한성대학교 가는 방법을 모르겠어요.'",
+          "2. 교통편 문의: '버스로 갈 수 있어요?'",
+          "3. 구체적 질문: '몇 번 버스 타야 해요?'",
+          "4. 확인: '한성대입구역에서 내리면 되나요?'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "한성대학교 가는 방법을 모르겠어요." },
+          { "speaker": "stranger", "line": "한성대입구역에서 내리시면 됩니다." },
+          { "speaker": "user", "line": "몇 번 지하철 타야 해요?" },
+          { "speaker": "stranger", "line": "4호선 타시면 됩니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "UNIVERSITY-CAMPUS-TOUR",
+      "category": "학교",
+      "task": "대학교 캠퍼스 투어",
+      "embedding_text": "대학교에 처음 와서 캠퍼스를 둘러보고 싶을 때. 학생이나 직원에게 주요 건물들의 위치를 물어보는 상황.",
+      "content": {
+        "goal": "대학교 캠퍼스의 주요 건물들을 찾는 것",
+        "typical_flow": [
+          "1. 목적 말하기: '캠퍼스 둘러보고 싶어요.'",
+          "2. 건물 문의: '도서관은 어디에 있어요?'",
+          "3. 추가 질문: '학생회관은 어디에 있어요?'",
+          "4. 감사 표현: '감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "한성대학교 캠퍼스 둘러보고 싶어요." },
+          { "speaker": "student", "line": "도서관은 저쪽에 있습니다." },
+          { "speaker": "user", "line": "학생회관은 어디에 있어요?" },
+          { "speaker": "student", "line": "저쪽 건물입니다." }
+        ]
+      }
+    },
+    {
+      "scenario_id": "UNIVERSITY-ADMISSION-INFO",
+      "category": "학교",
+      "task": "대학교 입학 정보 문의",
+      "embedding_text": "대학교 입학에 관심이 있어서 입학처나 학생상담실에 방문하여 입학 정보를 문의하는 상황.",
+      "content": {
+        "goal": "대학교 입학 정보를 얻는 것",
+        "typical_flow": [
+          "1. 목적 말하기: '입학 정보 문의하려고 왔어요.'",
+          "2. 구체적 질문: '입학 시기는 언제인가요?'",
+          "3. 추가 질문: '서류는 어떤 것들이 필요한가요?'",
+          "4. 감사 표현: '감사합니다.'"
+        ],
+        "example_dialogue": [
+          { "speaker": "user", "line": "한성대학교 입학 정보 문의하려고 왔어요." },
+          { "speaker": "staff", "line": "네, 어떤 정보가 필요하세요?" },
+          { "speaker": "user", "line": "입학 시기는 언제인가요?" },
+          { "speaker": "staff", "line": "3월에 모집합니다." }
+        ]
+      }
     }
   ]

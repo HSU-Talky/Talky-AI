@@ -1,4 +1,4 @@
-import json                                   # 표준 라이브러리: 문자열 ↔ JSON 변환에 사용
+import json                                    # 표준 라이브러리: 문자열 ↔ JSON 변환에 사용
 from fastapi import FastAPI, HTTPException     # FastAPI 앱 생성, 에러 응답용 예외
 from pydantic import BaseModel, Field          # 요청/응답 스키마 정의
 from typing import List, Optional              # 타입 힌트: 리스트, Optional
@@ -6,10 +6,68 @@ import httpx                                   # 비동기 HTTP 클라이언트 
 from stt import transcribe_audio               # STT 처리 함수 임포트
 from rag.retriever import retrieve_scenario
 from rag.database import get_db, get_embedding_model  # 이 줄 추가
+from difflib import SequenceMatcher
 
 from fastapi import UploadFile, File, Form, HTTPException           # 파일 업로드 처리용
 
 from config import settings                    # 환경설정/비밀키를 담은 settings 객체 임포트
+
+def ensure_diversity(sentences: List[str], similarity_threshold: float = 0.7) -> List[str]:
+    """
+    문장 리스트에서 유사한 문장들을 제거하여 다양성을 보장합니다.
+    """
+    if len(sentences) <= 1:
+        return sentences
+    
+    diverse_sentences = [sentences[0]]  # 첫 번째 문장은 항상 포함
+    
+    for sentence in sentences[1:]:
+        is_diverse = True
+        for existing in diverse_sentences:
+            # 문장 유사도 계산
+            similarity = SequenceMatcher(None, sentence, existing).ratio()
+            if similarity > similarity_threshold:
+                is_diverse = False
+                break
+        
+        if is_diverse:
+            diverse_sentences.append(sentence)
+    
+    return diverse_sentences
+
+def retrieve_scenarios_by_categories(keywords: List[str], context: str):
+    """
+    여러 카테고리를 고려하여 시나리오를 검색합니다.
+    각 카테고리별로 검색하여 모든 카테고리를 반영합니다.
+    거리 1.0 이상의 쓰레기 결과는 제거합니다.
+    """
+    if not keywords:
+        return None
+    
+    all_scenarios = []
+    seen_ids = set()
+    
+    # 각 키워드별로 검색
+    for keyword in keywords:
+        search_query = f"{keyword} {context}".strip()
+        scenarios = retrieve_scenario(search_query, n_results=2)  # 각 카테고리당 2개
+        
+        if scenarios:
+            for scenario in scenarios:
+                # 거리 1.0 이상은 무시, 나머지는 모두 추가
+                distance = scenario.get('distance', 0)
+                if distance < 1.0:  # 거리 1.0 미만만 허용
+                    if scenario['id'] not in seen_ids:
+                        all_scenarios.append(scenario)
+                        seen_ids.add(scenario['id'])
+                        print(f"✅ 선택된 시나리오: {scenario['id']} (거리: {distance:.3f})")
+                else:
+                    print(f"❌ 제외된 시나리오: {scenario['id']} (거리: {distance:.3f}) - 너무 다름")
+    
+    # 상위 3개 선택 (거리 기준으로 정렬)
+    all_scenarios.sort(key=lambda x: x.get('distance', 0))
+    print(f"🔍 최종 선택된 시나리오: {len(all_scenarios)}개")
+    return all_scenarios[:3]
 
 # FastAPI 앱 및 모델 정의
 app = FastAPI(
@@ -66,24 +124,38 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
     conversation_str = "\n".join([f"- {line}" for line in request.conversation]) if request.conversation else "(대화 시작 전)"
     favorites_str = "\n".join([f"- {fav}" for fav in request.favorites]) if request.favorites else "없음"
 
-    # RAG 검색: 키워드와 상황을 조합해서 시나리오 검색
-    search_query = f"{keywords_str} {context_str}".strip()
-    retrieved_scenario = retrieve_scenario(search_query)
+    # RAG 검색: 여러 카테고리를 고려하여 시나리오 검색
+    retrieved_scenarios = retrieve_scenarios_by_categories(request.keywords, context_str)
     
     scenario_guide = "없음. 아래 '참고 정보'만을 바탕으로 생성하세요."
     example_dialogue_str = "없음" # 변수 초기화
-    if retrieved_scenario:
-        goal = retrieved_scenario.get('goal', 'N/A')
-        flow = "\n".join(retrieved_scenario.get('typical_flow', []))
-        scenario_guide = f"""- 시나리오 목표: {goal}
-        - 이상적인 대화 흐름:
-        {flow}"""
-        if retrieved_scenario.get("example_dialogue"):
-            dialogue_lines = [f"- {d['speaker']}: {d['line']}" for d in retrieved_scenario["example_dialogue"]]
-            example_dialogue_str = "\n".join(dialogue_lines)
+    if retrieved_scenarios:
+        # 여러 시나리오 정보를 종합
+        scenario_info = []
+        all_dialogues = []
+        
+        for scenario in retrieved_scenarios:
+            content = scenario['content']
+            goal = content.get('goal', 'N/A')
+            flow = "\n".join(content.get('typical_flow', []))
+            scenario_info.append(f"• {goal}\n  흐름: {flow}")
+            
+            if content.get("example_dialogue"):
+                dialogue_lines = [f"- {d['speaker']}: {d['line']}" for d in content["example_dialogue"]]
+                all_dialogues.extend(dialogue_lines)
+        
+        scenario_guide = f"""다양한 시나리오 참고:
+        {chr(10).join(scenario_info)}"""
+        
+        if all_dialogues:
+            example_dialogue_str = "\n".join(all_dialogues)
 
     print(f"AI 문장 생성 요청 수신: keywords='{keywords_str}', context='{context_str}'")
-    print(f"RAG 검색 결과: {'시나리오 발견' if retrieved_scenario else '시나리오 없음'}")
+    print(f"RAG 검색 결과: {'시나리오 발견' if retrieved_scenarios else '시나리오 없음'}")
+    if retrieved_scenarios:
+        print(f"🔍 검색된 시나리오 수: {len(retrieved_scenarios)}개")
+        for i, scenario in enumerate(retrieved_scenarios):
+            print(f"  {i+1}. {scenario['id']} (거리: {scenario.get('distance', 'N/A')})")
 
     # AI에게 보낼 지시서(프롬프트)
     prompt = f"""
@@ -103,9 +175,14 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
             - **만약 "네/아니오" 질문이라면:** "네, ..." 또는 "아니요, ..." 형식으로 시작하는 답변을 구상한다.
             - **만약 "정보 요구" 질문이라면:** **"네/아니요" 없이** "어제부터요.", "머리가 아파서요." 와 같이 질문의 핵심에 대한 정보로 바로 시작하는 답변을 구상한다.
 
-        3.  **[3단계: 최종 문장 생성]**
+        3.  **[3단계: 최종 문장 생성 - 다양성 강조]**
             - 먼저, `사용자의 평소 말투 (즐겨찾기)` 목록을 확인한다. 만약 현재 질문에 대한 완벽한 답변이 즐겨찾기에 있다면, 그 문장을 최종 추천 목록에 최우선으로 포함시킨다.
-            - 나머지 비어있는 자리(총 4개 중)는 위 2단계 전략과 `참고 정보`를 활용하여 가장 적절하고 다양한 새 문장을 생성하여 채워넣는다.
+            - 나머지 비어있는 자리(총 4개 중)는 위 2단계 전략과 `참고 정보`를 활용하여 **서로 다른 관점과 표현 방식**으로 문장을 생성한다.
+            - **중요: 4개 문장은 모두 다른 의미와 뉘앙스를 가져야 합니다.**
+            - **예시:**
+              * 질문: "언제부터 아프셨어요?"
+              * 좋은 예: ["어제부터요.", "3일 전부터 아팠어요.", "갑자기 아프기 시작했어요.", "오늘 아침부터요."]
+              * 나쁜 예: ["어제부터요.", "어제부터 아팠어요.", "어제부터 시작됐어요.", "어제부터 계속 아파요."]
             - **모든 문장은 존댓말로 생성하세요.**
 
 
@@ -123,6 +200,7 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
         ### 출력 형식 ###
         - 답변은 반드시 "generated_sentences" 라는 단 하나의 키를 가진 JSON 객체여야 합니다.
         - 값은 최종적으로 추천할 문장 4개가 담긴 문자열 배열입니다.
+        - **각 문장은 서로 다른 의미와 표현을 가져야 합니다.**
     """
 
     # Gemini 2.5 Flash 모델
@@ -144,7 +222,13 @@ async def generate_ai_sentences(request: RecommendationRequest) -> List[str]:
             if not candidates:
                 return []
             text_content = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "{}")
-            return json.loads(text_content).get("generated_sentences", [])
+            generated_sentences = json.loads(text_content).get("generated_sentences", [])
+            
+            # 다양성 보장 로직 적용
+            diverse_sentences = ensure_diversity(generated_sentences)
+            print(f"다양성 보장: {len(generated_sentences)}개 → {len(diverse_sentences)}개")
+            
+            return diverse_sentences
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI 서비스 처리 중 오류가 발생했습니다: {e}")
 
@@ -198,7 +282,9 @@ async def dialogue_turn(
         raise HTTPException(status_code=500, detail="AI가 문장을 생성하지 못했습니다.")
 
     final_sentences = [Sentence(id=i+1, text=t) for i, t in enumerate(generated)]
-    category = meta.keywords[0] if meta.keywords else "일상"
+    
+    # 카테고리 결정: 키워드 조합 사용
+    category = ", ".join(meta.keywords) if meta.keywords else "일상"
     
     return RecommendationResponse(
         category=category,
